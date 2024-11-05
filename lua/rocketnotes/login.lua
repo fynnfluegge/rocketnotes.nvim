@@ -13,7 +13,7 @@ local function save_tokens(id_token, access_token, refresh_token, client_id, api
 	if file then
 		file:write(
 			string.format(
-				'{"IdToken": "%s", "AccessToken": "%s", "RefreshToken": "%s", "ClientId": "%s", ApiUrl: "%s", Domain: "%s", Region: "%s"}',
+				'{"IdToken": "%s", "AccessToken": "%s", "RefreshToken": "%s", "ClientId": "%s", "ApiUrl": "%s", "Domain": "%s", "Region": "%s"}',
 				id_token:gsub("\n", ""),
 				access_token:gsub("\n", ""),
 				refresh_token:gsub("\n", ""),
@@ -51,9 +51,9 @@ local function load_tokens()
 end
 
 M.get_tokens = function()
-	local id_token, access_token, refresh_token, clientId, domain, apiUrl = load_tokens()
-	if id_token and access_token and refresh_token and clientId and domain and apiUrl then
-		return id_token, access_token, refresh_token, clientId, domain, apiUrl
+	local id_token, access_token, refresh_token, clientId, domain, apiUrl, region = load_tokens()
+	if id_token and access_token and refresh_token and clientId and domain and apiUrl and region then
+		return id_token, access_token, refresh_token, clientId, domain, apiUrl, region
 	else
 		print("No tokens found.")
 		return nil, nil, nil, nil
@@ -62,7 +62,6 @@ end
 
 M.refresh_token = function()
 	local id_token, access_token, refresh_token, clientId, apiUrl, domain, region = M.get_tokens()
-	print(clientId)
 	local temp_file = "/tmp/cognito_login_response.json"
 	local url = string.format("https://%s.auth.%s.amazoncognito.com/oauth2/token", domain, region)
 	local body = string.format("grant_type=refresh_token&refresh_token=%s&client_id=%s", refresh_token, clientId)
@@ -143,7 +142,7 @@ M.login = function()
 				-- print("Access Token:", access_token)
 				-- print("Refresh Token:", refresh_token)
 
-				save_tokens(id_token, access_token, refresh_token, clientId)
+				save_tokens(id_token, access_token, refresh_token, clientId, apiUrl, domain, region)
 			else
 				print("Login failed:", response)
 			end

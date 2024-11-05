@@ -4,9 +4,7 @@ local sync = require("rocketnotes.sync")
 
 ---@class Config
 ---@field opt string Your config option
-local config = {
-	opt = "Hello!",
-}
+local config = {}
 
 ---@class MyModule
 local M = {}
