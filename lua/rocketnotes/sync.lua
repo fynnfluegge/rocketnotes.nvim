@@ -46,6 +46,22 @@ local function get_last_modified_date(file_path)
 	return tonumber(result)
 end
 
+local function loadRemoteLastModifiedTable()
+	local lastModifiedTableFile = utils.get_config_path() .. "/lastRemoteModified.json"
+	if utils.file_exists(lastModifiedTableFile) then
+		return vim.fn.json_decode(utils.read_file(lastModifiedTableFile))
+	end
+	return {}
+end
+
+local function loadLastSyncedTable()
+	local lastModifiedTableFile = utils.get_config_path() .. "/lastSynced.json"
+	if utils.file_exists(lastModifiedTableFile) then
+		return vim.fn.json_decode(utils.read_file(lastModifiedTableFile))
+	end
+	return {}
+end
+
 local function saveRemoteLastModifiedTable(lastRemoteModifiedTable)
 	local lastModifiedTableFile = utils.create_file(utils.get_config_path() .. "/lastRemoteModified.json")
 	utils.write_file(lastModifiedTableFile, vim.fn.json_encode(lastRemoteModifiedTable))
@@ -56,18 +72,101 @@ local function saveLastSyncedTable(lastModifiedTable)
 	utils.write_file(lastModifiedTableFile, vim.fn.json_encode(lastModifiedTable))
 end
 
-local function saveDocument(document, path)
+local function saveDocument(document, path, lastRemoteModifiedTable, lastSyncedTable)
 	document = vim.fn.json_decode(document)
-	local document_file = utils.create_file(path .. "/" .. document.title .. ".md")
-	utils.write_file(document_file, document.content)
-	local lastModified = get_last_modified_date(document_file:gsub(" ", "\\ "))
-	return document.lastModified, lastModified
+	local filePath = path .. "/" .. document.title .. ".md"
+	local localFileExists = utils.file_exists(filePath)
+
+	if not localFileExists then
+		local document_file = utils.create_file(filePath)
+		utils.write_file(document_file, document.content)
+		return document.lastModified, get_last_modified_date(document_file:gsub(" ", "\\ "))
+	else
+		local localFileLastModifiedData = get_last_modified_date(filePath:gsub(" ", "\\ "))
+		local localModified = true
+		local remoteModified = true
+		if localFileLastModifiedData == lastSyncedTable[document.id] then
+			localModified = false
+		end
+		if document.lastModified == lastRemoteModifiedTable[document.id] then
+			remoteModified = false
+		end
+		-- check if local file was modified and remote file was modified. If yes, save a second copy of the file
+		if localModified and remoteModified then
+			local document_file = utils.create_file(path .. "/" .. document.title .. "_remote.md")
+			utils.write_file(document_file, document.content)
+			local lastModified = get_last_modified_date(document_file:gsub(" ", "\\ "))
+			return document.lastModified, lastModified
+		end
+		-- If only remote file was modified, update the local file
+		if remoteModified then
+			local document_file = utils.create_file(path .. "/" .. document.title .. ".md")
+			utils.write_file(document_file, document.content)
+			local lastModified = get_last_modified_date(document_file:gsub(" ", "\\ "))
+			return document.lastModified, lastModified
+		end
+		-- If only local file was modified, do save document post request
+		if localModified then
+			local lastModified = get_last_modified_date(path .. "/" .. document.title .. ".md")
+			-- TODO Post request
+			print("TODO Post request " .. document.title)
+			return document.lastModified, lastModified
+		end
+	end
 end
 
-local function create_document_space(documentId, documentPath, access_token, apiUrl, region)
+local function create_document_space(
+	documentId,
+	documentPath,
+	access_token,
+	apiUrl,
+	region,
+	lastRemoteModifiedTable,
+	lastSyncedTable
+)
 	local path = utils.get_workspace_path() .. "/" .. documentPath
 	utils.create_directory_if_not_exists(path)
-	return saveDocument(getDocument(access_token, documentId, apiUrl, region), path)
+	return saveDocument(
+		getDocument(access_token, documentId, apiUrl, region),
+		path,
+		lastRemoteModifiedTable,
+		lastSyncedTable
+	)
+end
+
+local function process_document(
+	document,
+	parent_name,
+	access_token,
+	api_url,
+	region,
+	lastRemoteModifiedTable,
+	lastSyncedTable
+)
+	local document_name = parent_name and (parent_name .. "/" .. document.name) or document.name
+	lastRemoteModifiedTable[document.id], lastSyncedTable[document.id] = create_document_space(
+		document.id,
+		document_name,
+		access_token,
+		api_url,
+		region,
+		lastRemoteModifiedTable,
+		lastSyncedTable
+	)
+
+	if document.children and type(document.children) == "table" then
+		for _, child_document in ipairs(document.children) do
+			process_document(
+				child_document,
+				document_name,
+				access_token,
+				api_url,
+				region,
+				lastRemoteModifiedTable,
+				lastSyncedTable
+			)
+		end
+	end
 end
 
 ---@return string
@@ -75,105 +174,31 @@ M.sync = function()
 	local id_token, access_token, refresh_token, clientId, api_url, domain, region = login.get_tokens()
 	print("Installing RocketNotes...")
 
-	local result = getTree(access_token, api_url, region)
-	local start_index, end_index = string.find(result, "Unauthorized")
+	local document_tree = getTree(access_token, api_url, region)
+	local start_index, end_index = string.find(document_tree, "Unauthorized")
 	if start_index then
 		print("unauthorized")
 		login.refresh_token()
 		id_token, access_token = login.get_tokens()
-		result = getTree(access_token, api_url, region)
+		document_tree = getTree(access_token, api_url, region)
 	end
 
-	utils.saveFile(utils.get_tree_cache_file(), result)
-	local data = vim.fn.json_decode(result)
+	local data = vim.fn.json_decode(document_tree)
 	if type(data.documents) == "table" then
-		local lastRemoteModifiedTable = {}
-		local lastSyncedTable = {}
-		for index, document in ipairs(data.documents) do
-			-- Root documents
-			lastRemoteModifiedTable[document.id], lastSyncedTable[document.id] =
-				create_document_space(document.id, document.name, access_token, api_url, region)
-			for key, value in pairs(document) do
-				-- Instead recursion, let's just go 4 levels deep
-				-- 1st Level
-				if key == "children" and type(value) == "table" and next(value) ~= nil then
-					for childIndex, childDocument in ipairs(value) do
-						lastRemoteModifiedTable[childDocument.id], lastSyncedTable[childDocument.id] =
-							create_document_space(
-								childDocument.id,
-								document.name .. "/" .. childDocument.name,
-								access_token,
-								api_url,
-								region
-							)
-						for childKey, childValue in pairs(childDocument) do
-							-- 2nd level
-							if childKey == "children" and type(childValue) == "table" then
-								for _childIndex, _childDocument in ipairs(childValue) do
-									lastRemoteModifiedTable[_childDocument.id], lastSyncedTable[_childDocument.id] =
-										create_document_space(
-											_childDocument.id,
-											document.name .. "/" .. childDocument.name .. "/" .. _childDocument.name,
-											access_token,
-											api_url,
-											region
-										)
-									for _childKey, _childValue in pairs(_childDocument) do
-										-- 3rd level
-										if _childKey == "children" and type(_childValue) == "table" then
-											for __childIndex, __childDocument in ipairs(_childValue) do
-												lastRemoteModifiedTable[__childDocument.id], lastSyncedTable[__childDocument.id] =
-													create_document_space(
-														__childDocument.id,
-														document.name
-															.. "/"
-															.. childDocument.name
-															.. "/"
-															.. _childDocument.name
-															.. "/"
-															.. __childDocument.name,
-														access_token,
-														api_url,
-														region
-													)
-												for __childKey, __childValue in pairs(__childDocument) do
-													-- 4th level
-													if __childKey == "children" and type(__childValue) == "table" then
-														for ___childIndex, ___childDocument in ipairs(__childValue) do
-															lastRemoteModifiedTable[___childDocument.id], lastSyncedTable[___childDocument.id] =
-																create_document_space(
-																	___childDocument.id,
-																	document.name
-																		.. "/"
-																		.. childDocument.name
-																		.. "/"
-																		.. _childDocument.name
-																		.. "/"
-																		.. __childDocument.name
-																		.. "/"
-																		.. ___childDocument.name,
-																	access_token,
-																	api_url,
-																	region
-																)
-														end
-													end
-												end
-											end
-										end
-									end
-								end
-							end
-						end
-					end
-				end
-			end
+		local lastRemoteModifiedTable = loadRemoteLastModifiedTable()
+		local lastSyncedTable = loadLastSyncedTable()
+		for _, document in ipairs(data.documents) do
+			process_document(document, nil, access_token, api_url, region, lastRemoteModifiedTable, lastSyncedTable)
 		end
 		saveRemoteLastModifiedTable(lastRemoteModifiedTable)
 		saveLastSyncedTable(lastSyncedTable)
 	else
 		print("data.documents is not a table")
 	end
+	-- TODO diff saved document tree from last sync with current remote document tree
+	-- delete/add docuemnts from local workspace based on diff
+	-- upload newly local created documents. For this maintain a local file to identify what was created locally
+	utils.saveFile(utils.get_tree_cache_file(), document_tree)
 end
 
 return M

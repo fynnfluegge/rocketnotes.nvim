@@ -2,11 +2,9 @@
 local M = {}
 
 M.create_directory_if_not_exists = function(dir)
-	-- Check if the directory exists using the test command
 	local check_command = '[ -d "' .. dir .. '" ]'
 	local result = os.execute(check_command)
 
-	-- If the directory does not exist, create it
 	if result ~= 0 then
 		local create_command = 'mkdir -p "' .. dir .. '"'
 		os.execute(create_command)
@@ -16,11 +14,9 @@ M.create_directory_if_not_exists = function(dir)
 end
 
 M.create_file = function(file)
-	-- Check if the file exists using the test command
 	local check_command = '[ -f "' .. file .. '" ]'
 	local result = os.execute(check_command)
 
-	-- If the file does not exist, create it
 	if result ~= 0 then
 		local create_command = 'touch "' .. file .. '"'
 		os.execute(create_command)
@@ -36,6 +32,24 @@ M.write_file = function(file, content)
 		file:close()
 	else
 		print("Failed to open file for writing.")
+	end
+end
+
+M.file_exists = function(file)
+	local check_command = '[ -f "' .. file .. '" ]'
+	local result = os.execute(check_command)
+
+	return result == 0
+end
+
+M.read_file = function(file)
+	local file = io.open(file, "r")
+	if file then
+		local content = file:read("*a")
+		file:close()
+		return content
+	else
+		print("Failed to open file for reading.")
 	end
 end
 

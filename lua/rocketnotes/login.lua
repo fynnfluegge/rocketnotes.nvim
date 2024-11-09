@@ -35,7 +35,6 @@ local function load_tokens()
 	if file then
 		local content = file:read("*all")
 		file:close()
-		print("Token file found.")
 		local tokens = vim.fn.json_decode(content)
 		return tokens.IdToken,
 			tokens.AccessToken,
