@@ -174,20 +174,21 @@ M.sync = function()
 	local id_token, access_token, refresh_token, clientId, api_url, domain, region = login.get_tokens()
 	print("Installing RocketNotes...")
 
-	local document_tree = getTree(access_token, api_url, region)
-	local start_index, end_index = string.find(document_tree, "Unauthorized")
+	local local_document_tree = utils.read_file(utils.get_tree_cache_file())
+	local remote_document_tree = getTree(access_token, api_url, region)
+	local start_index, end_index = string.find(remote_document_tree, "Unauthorized")
 	if start_index then
 		print("unauthorized")
 		login.refresh_token()
 		id_token, access_token = login.get_tokens()
-		document_tree = getTree(access_token, api_url, region)
+		remote_document_tree = getTree(access_token, api_url, region)
 	end
 
-	local data = vim.fn.json_decode(document_tree)
-	if type(data.documents) == "table" then
+	local remote_document_tree_table = vim.fn.json_decode(remote_document_tree)
+	if type(remote_document_tree_table.documents) == "table" then
 		local lastRemoteModifiedTable = loadRemoteLastModifiedTable()
 		local lastSyncedTable = loadLastSyncedTable()
-		for _, document in ipairs(data.documents) do
+		for _, document in ipairs(remote_document_tree_table.documents) do
 			process_document(document, nil, access_token, api_url, region, lastRemoteModifiedTable, lastSyncedTable)
 		end
 		saveRemoteLastModifiedTable(lastRemoteModifiedTable)
@@ -196,9 +197,31 @@ M.sync = function()
 		print("data.documents is not a table")
 	end
 	-- TODO diff saved document tree from last sync with current remote document tree
-	-- delete/add docuemnts from local workspace based on diff
+	-- delete/add docuemnts from remote workspace based on diff
 	-- upload newly local created documents. For this maintain a local file to identify what was created locally
-	utils.saveFile(utils.get_tree_cache_file(), document_tree)
+	if local_document_tree then
+		local local_document_tree_table = vim.fn.json_decode(local_document_tree)
+		local local_documents = utils.flattenTable(local_document_tree_table.documents)
+		local remote_documents = utils.flattenTable(remote_document_tree_table.documents)
+		for remote_document in remote_documents do
+			if not local_documents[remote_document.id] then
+				-- create document
+				print("create document " .. remote_document.id)
+				if local_documents[remote_document.parent] then
+					-- Parent already exists, create document in parent folder
+					print("create document in parent folder " .. remote_document.parent)
+					if
+						remote_document_tree_table[remote_document.id]
+						and remote_document_tree_table[remote_document.id].children
+					then
+						-- new document has children, traverse children and create them
+						print("create document in parent folder " .. remote_document.parent)
+					end
+				end
+			end
+		end
+	end
+	utils.saveFile(utils.get_tree_cache_file(), remote_document_tree)
 end
 
 return M

@@ -110,4 +110,28 @@ M.saveFile = function(file, content)
 	end
 end
 
+M.flattenDocumentTree = function(t)
+	local flat_list = {}
+
+	local function flatten(node)
+		table.insert(flat_list, {
+			id = node.id,
+			name = node.name,
+			parent = node.parent,
+			pinned = node.pinned,
+		})
+		if node.children then
+			for _, child in ipairs(node.children) do
+				flatten(child)
+			end
+		end
+	end
+
+	for _, node in ipairs(t) do
+		flatten(node)
+	end
+
+	return flat_list
+end
+
 return M
