@@ -1,5 +1,47 @@
 local utils = require("rocketnotes.utils")
 
+describe("getAllFiles", function()
+	it("should return files with their immediate parent directory", function()
+		-- Mock the io.popen function to simulate the output of the `find` command
+		local originalPopen = io.popen
+		io.popen = function()
+			return {
+				lines = function()
+					local lines = {
+						"/example_dir/file1.txt",
+						"/example_dir/file2.md",
+						"/example_dir/subdir/file3.lua",
+						"/example_dir/subdir/nested/file4.py",
+					}
+					local i = 0
+					return function()
+						i = i + 1
+						return lines[i]
+					end
+				end,
+				close = function() end,
+			}
+		end
+
+		-- Call the function with the mock data
+		local result = utils.getAllFiles("/example_dir")
+
+		-- Restore the original io.popen function
+		io.popen = originalPopen
+
+		-- Validate the result
+		assert.are.same({
+			"/example_dir/file1.txt",
+			"/example_dir/file2.md",
+			"/example_dir/subdir/file3.lua",
+			"/example_dir/subdir/nested/file4.py",
+		}, result)
+
+		local parent, file = utils.getFileNameAndParentDir(result[1])
+		assert.are.same({ "example_dir", "file1" }, { parent, file })
+	end)
+end)
+
 describe("flattenDocumentTree", function()
 	it("flattens a nested document tree", function()
 		local sample_tree = {

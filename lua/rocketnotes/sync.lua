@@ -85,6 +85,11 @@ local function saveDocument(document, path, lastRemoteModifiedTable, lastSyncedT
 		local localFileLastModifiedData = get_last_modified_date(filePath:gsub(" ", "\\ "))
 		local localModified = true
 		local remoteModified = true
+		if document.title == "Useful Terms" then
+			print(document.id)
+			print(localFileLastModifiedData)
+			print(utils.map(lastSyncedTable)[document.id])
+		end
 		if localFileLastModifiedData == lastSyncedTable[document.id] then
 			localModified = false
 		end
@@ -169,13 +174,15 @@ local function process_document(
 	end
 end
 
----@return string
 M.sync = function()
 	local id_token, access_token, refresh_token, clientId, api_url, domain, region = login.get_tokens()
 	print("Installing RocketNotes...")
 
 	local local_document_tree = utils.read_file(utils.get_tree_cache_file())
 	local remote_document_tree = getTree(access_token, api_url, region)
+	local lastRemoteModifiedTable = loadRemoteLastModifiedTable()
+	local lastSyncedTable = loadLastSyncedTable()
+
 	local start_index, end_index = string.find(remote_document_tree, "Unauthorized")
 	if start_index then
 		print("unauthorized")
@@ -186,42 +193,40 @@ M.sync = function()
 
 	local remote_document_tree_table = vim.fn.json_decode(remote_document_tree)
 	if type(remote_document_tree_table.documents) == "table" then
-		local lastRemoteModifiedTable = loadRemoteLastModifiedTable()
-		local lastSyncedTable = loadLastSyncedTable()
 		for _, document in ipairs(remote_document_tree_table.documents) do
 			process_document(document, nil, access_token, api_url, region, lastRemoteModifiedTable, lastSyncedTable)
 		end
-		saveRemoteLastModifiedTable(lastRemoteModifiedTable)
-		saveLastSyncedTable(lastSyncedTable)
 	else
 		print("data.documents is not a table")
 	end
-	-- TODO diff saved document tree from last sync with current remote document tree
-	-- delete/add docuemnts from remote workspace based on diff
-	-- upload newly local created documents. For this maintain a local file to identify what was created locally
+	-- TODO upload newly local created documents
 	if local_document_tree then
 		local local_document_tree_table = vim.fn.json_decode(local_document_tree)
-		local local_documents = utils.flattenTable(local_document_tree_table.documents)
-		local remote_documents = utils.flattenTable(remote_document_tree_table.documents)
-		for remote_document in remote_documents do
-			if not local_documents[remote_document.id] then
-				-- create document
-				print("create document " .. remote_document.id)
-				if local_documents[remote_document.parent] then
-					-- Parent already exists, create document in parent folder
-					print("create document in parent folder " .. remote_document.parent)
-					if
-						remote_document_tree_table[remote_document.id]
-						and remote_document_tree_table[remote_document.id].children
-					then
-						-- new document has children, traverse children and create them
-						print("create document in parent folder " .. remote_document.parent)
-					end
-				end
+		local local_documents = utils.createNodeMap(utils.flattenDocumentTree(local_document_tree_table.documents))
+		local remote_documents = utils.createNodeMap(utils.flattenDocumentTree(remote_document_tree_table.documents))
+		local local_document_paths = utils.getAllFiles(utils.get_workspace_path())
+		-- This is needed to keep track of newly created documents in local workspace that have been uploaded already
+		-- during iteration of local documents. Once a newly created document with a parent is found, the whole subtree is synced
+		local created_documents = {}
+		for _, document_path in ipairs(local_document_paths) do
+			-- print(document_path)
+			local parent_folder, file_name = utils.getFileNameAndParentDir(document_path)
+			if
+				not remote_documents[file_name]
+				and (remote_documents[parent_folder] or parent_folder == "root")
+				and not created_documents[file_name]
+			then
+				-- print("create document " .. file_name)
+				utils.traverseDirectory(document_path, function(file)
+					-- TODO update local tree and upload document
+					-- print("TODO update local tree and upload document " .. file)
+				end)
 			end
 		end
 	end
 	utils.saveFile(utils.get_tree_cache_file(), remote_document_tree)
+	saveRemoteLastModifiedTable(lastRemoteModifiedTable)
+	saveLastSyncedTable(lastSyncedTable)
 end
 
 return M

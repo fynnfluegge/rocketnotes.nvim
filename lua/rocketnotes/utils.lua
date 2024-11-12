@@ -120,7 +120,7 @@ M.flattenDocumentTree = function(t)
 			parent = node.parent,
 			pinned = node.pinned,
 		})
-		if node.children then
+		if type(node.children) == "table" then
 			for _, child in ipairs(node.children) do
 				flatten(child)
 			end
@@ -132,6 +132,74 @@ M.flattenDocumentTree = function(t)
 	end
 
 	return flat_list
+end
+
+M.createNodeMap = function(flat_list)
+	local node_map = {}
+
+	for _, node in ipairs(flat_list) do
+		node_map[node.name] = node
+	end
+
+	return node_map
+end
+
+M.get_full_document_path = function(parent, name, tree)
+	local path = name
+	while parent do
+		local parent_node = tree[parent]
+		path = parent_node.name .. "/" .. path
+		parent = parent_node.parent
+	end
+	return path
+end
+
+M.traverseDocumentTree = function(t, callback)
+	local function traverse(node)
+		callback(node)
+		if node.children then
+			for _, child in ipairs(node.children) do
+				traverse(child)
+			end
+		end
+	end
+
+	for _, node in ipairs(t) do
+		traverse(node)
+	end
+end
+
+M.traverseDirectory = function(dir, callback)
+	local p = io.popen('find "' .. dir .. '" -type d')
+	for directory in p:lines() do
+		callback(directory)
+	end
+	p:close()
+end
+
+M.getAllFiles = function(dir)
+	local files = {}
+	local p = io.popen('find "' .. dir .. '" -type f')
+	for file in p:lines() do
+		table.insert(files, file)
+	end
+	p:close()
+	return files
+end
+
+M.getFileNameAndParentDir = function(filePath)
+	local parentDir, fileName = filePath:match("(.*/)([^/]+)$")
+	local fileNameWithoutExtension = fileName:gsub("%.[^%.]+$", "")
+	parentDir = parentDir:gsub("^/", ""):gsub("/$", "")
+	return parentDir, fileNameWithoutExtension
+end
+
+M.map = function(tbl)
+	local t = {}
+	for k, v in pairs(tbl) do
+		t[k] = v
+	end
+	return t
 end
 
 return M

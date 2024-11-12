@@ -7,20 +7,22 @@ local function get_token_file()
 	return utils.get_config_path() .. "/tokens.json"
 end
 
-local function save_tokens(id_token, access_token, refresh_token, client_id, apiUrl, domain, region)
+local function save_tokens(id_token, access_token, refresh_token, client_id, apiUrl, domain, region, username, password)
 	local token_file = get_token_file()
 	local file = io.open(token_file, "w")
 	if file then
 		file:write(
 			string.format(
-				'{"IdToken": "%s", "AccessToken": "%s", "RefreshToken": "%s", "ClientId": "%s", "ApiUrl": "%s", "Domain": "%s", "Region": "%s"}',
+				'{"IdToken": "%s", "AccessToken": "%s", "RefreshToken": "%s", "ClientId": "%s", "ApiUrl": "%s", "Domain": "%s", "Region": "%s", Username: "%s", Password: "%s"}',
 				id_token:gsub("\n", ""),
 				access_token:gsub("\n", ""),
 				refresh_token:gsub("\n", ""),
 				client_id:gsub("\n", ""),
 				apiUrl:gsub("\n", ""),
 				domain:gsub("\n", ""),
-				region:gsub("\n", "")
+				region:gsub("\n", ""),
+				username:gsub("\n", ""),
+				password:gsub("\n", "")
 			)
 		)
 		file:close()
@@ -35,6 +37,10 @@ local function load_tokens()
 	if file then
 		local content = file:read("*all")
 		file:close()
+		if content == "" then
+			print("Token file is empty.")
+			return nil, nil, nil, nil, nil, nil, nil, nil, nil
+		end
 		local tokens = vim.fn.json_decode(content)
 		return tokens.IdToken,
 			tokens.AccessToken,
@@ -42,20 +48,21 @@ local function load_tokens()
 			tokens.ClientId,
 			tokens.ApiUrl,
 			tokens.Domain,
-			tokens.Region
+			tokens.Region,
+			tokens.Username,
+			tokens.Password
 	else
 		print("Token file not found.")
-		return nil, nil, nil
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil
 	end
 end
 
 M.get_tokens = function()
-	local id_token, access_token, refresh_token, clientId, domain, apiUrl, region = load_tokens()
+	local id_token, access_token, refresh_token, clientId, domain, apiUrl, region, username, password = load_tokens()
 	if id_token and access_token and refresh_token and clientId and domain and apiUrl and region then
-		return id_token, access_token, refresh_token, clientId, domain, apiUrl, region
+		return id_token, access_token, refresh_token, clientId, domain, apiUrl, region, username, password
 	else
-		print("No tokens found.")
-		return nil, nil, nil, nil
+		return nil, nil, nil, nil, nil, nil, nil, nil
 	end
 end
 
@@ -82,6 +89,7 @@ M.refresh_token = function()
 
 		if response:find("NotAuthorizedException") then
 			print("Refresh token expired.")
+			-- TODO login again
 		else
 			local tokens = vim.fn.json_decode(response)
 			local id_token = tokens.id_token
@@ -93,14 +101,24 @@ M.refresh_token = function()
 end
 
 M.login = function()
-	local domain = vim.fn.input("Enter domain: ")
-	local apiUrl = vim.fn.input("Enter API URL: ")
-	local region = vim.fn.input("Enter region: ")
-	local clientId = vim.fn.input("Enter clientId: ")
-	local username = vim.fn.input("Enter your username: ")
-	local password = vim.fn.inputsecret("Enter your password: ")
+	local id_token, access_token, refresh_token, clientId, api_url, domain, region, username, password = M.get_tokens()
+	local domain_input = vim.fn.input(domain and string.format("Enter domain (%s): ", domain) or "Enter domain: ")
+	domain = domain_input ~= "" and domain_input or domain
+	local apiUrl_input = vim.fn.input(api_url and string.format("Enter API URL (%s): ", api_url) or "Enter API URL: ")
+	local apiUrl = apiUrl_input ~= "" and apiUrl_input or api_url
+	local region_input = vim.fn.input(region and string.format("Enter region (%s): ", region) or "Enter region: ")
+	region = region_input ~= "" and region_input or region
+	local clientId_input =
+		vim.fn.input(clientId and string.format("Enter client ID (%s): ", clientId) or "Enter client ID: ")
+	clientId = clientId_input ~= "" and clientId_input or clientId
+	local username_input =
+		vim.fn.input(username and string.format("Enter your username (%s): ", username) or "Enter your username: ")
+	username = username_input ~= "" and username_input or username
+	local password_input = vim.fn.inputsecret(
+		password and string.format("Enter your password (********): ", password) or "Enter your password: "
+	)
+	password = password_input ~= "" and password_input or password
 
-	print("Logging in to RocketNotes...")
 	local url = string.format("https://cognito-idp.%s.amazonaws.com/", region)
 	local body = string.format(
 		'{"AuthParameters": {"USERNAME": "%s", "PASSWORD": "%s"}, "AuthFlow": "USER_PASSWORD_AUTH", "ClientId": "%s"}',
@@ -141,7 +159,7 @@ M.login = function()
 				-- print("Access Token:", access_token)
 				-- print("Refresh Token:", refresh_token)
 
-				save_tokens(id_token, access_token, refresh_token, clientId, apiUrl, domain, region)
+				save_tokens(id_token, access_token, refresh_token, clientId, apiUrl, domain, region, username, password)
 			else
 				print("Login failed:", response)
 			end
