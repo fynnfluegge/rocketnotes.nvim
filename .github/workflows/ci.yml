@@ -19,5 +19,8 @@ jobs:
       - name: Copy Source
         run: cp -r ./lua/rocketnotes ./src/
 
+      - name: List src directory contents
+        run: ls -R ./src/
+
       - name: Lua Busted
         uses: lunarmodules/busted@v2.2.0
