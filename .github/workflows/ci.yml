@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Copy Source
-        run: cp -r ./lua/rocketnotes ./src/
+        run: cp -r ./lua/ ./src/
 
       - name: List src directory contents
         run: ls -R ./src/
