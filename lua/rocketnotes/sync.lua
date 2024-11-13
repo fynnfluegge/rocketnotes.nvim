@@ -85,36 +85,34 @@ local function saveDocument(document, path, lastRemoteModifiedTable, lastSyncedT
 		local localFileLastModifiedData = get_last_modified_date(filePath:gsub(" ", "\\ "))
 		local localModified = true
 		local remoteModified = true
-		if document.title == "Useful Terms" then
-			print(document.id)
-			print(localFileLastModifiedData)
-			print(utils.map(lastSyncedTable)[document.id])
-		end
 		if localFileLastModifiedData == lastSyncedTable[document.id] then
 			localModified = false
 		end
 		if document.lastModified == lastRemoteModifiedTable[document.id] then
 			remoteModified = false
 		end
+		local document_file = utils.create_file(path .. "/" .. document.title .. ".md")
+		local lastModified = get_last_modified_date(document_file:gsub(" ", "\\ "))
 		-- check if local file was modified and remote file was modified. If yes, save a second copy of the file
 		if localModified and remoteModified then
-			local document_file = utils.create_file(path .. "/" .. document.title .. "_remote.md")
-			utils.write_file(document_file, document.content)
-			local lastModified = get_last_modified_date(document_file:gsub(" ", "\\ "))
+			print("local and remote modified " .. document.title)
+
+			local document_file_remote = utils.create_file(path .. "/" .. document.title .. "_remote.md")
+			utils.write_file(document_file_remote, document.content)
 			return document.lastModified, lastModified
-		end
 		-- If only remote file was modified, update the local file
-		if remoteModified then
+		elseif remoteModified then
+			print("remote modified " .. document.title)
 			local document_file = utils.create_file(path .. "/" .. document.title .. ".md")
 			utils.write_file(document_file, document.content)
-			local lastModified = get_last_modified_date(document_file:gsub(" ", "\\ "))
+			lastModified = get_last_modified_date(document_file:gsub(" ", "\\ "))
 			return document.lastModified, lastModified
-		end
 		-- If only local file was modified, do save document post request
-		if localModified then
-			local lastModified = get_last_modified_date(path .. "/" .. document.title .. ".md")
+		elseif localModified then
 			-- TODO Post request
 			print("TODO Post request " .. document.title)
+			return document.lastModified, lastModified
+		else
 			return document.lastModified, lastModified
 		end
 	end

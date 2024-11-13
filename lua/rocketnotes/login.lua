@@ -13,7 +13,7 @@ local function save_tokens(id_token, access_token, refresh_token, client_id, api
 	if file then
 		file:write(
 			string.format(
-				'{"IdToken": "%s", "AccessToken": "%s", "RefreshToken": "%s", "ClientId": "%s", "ApiUrl": "%s", "Domain": "%s", "Region": "%s", Username: "%s", Password: "%s"}',
+				'{"IdToken": "%s", "AccessToken": "%s", "RefreshToken": "%s", "ClientId": "%s", "ApiUrl": "%s", "Domain": "%s", "Region": "%s", "Username": "%s", "Password": "%s"}',
 				id_token:gsub("\n", ""),
 				access_token:gsub("\n", ""),
 				refresh_token:gsub("\n", ""),
@@ -67,7 +67,7 @@ M.get_tokens = function()
 end
 
 M.refresh_token = function()
-	local id_token, access_token, refresh_token, clientId, apiUrl, domain, region = M.get_tokens()
+	local id_token, access_token, refresh_token, clientId, apiUrl, domain, region, username, password = M.get_tokens()
 	local temp_file = "/tmp/cognito_login_response.json"
 	local url = string.format("https://%s.auth.%s.amazoncognito.com/oauth2/token", domain, region)
 	local body = string.format("grant_type=refresh_token&refresh_token=%s&client_id=%s", refresh_token, clientId)
@@ -95,7 +95,7 @@ M.refresh_token = function()
 			local id_token = tokens.id_token
 			local access_token = tokens.access_token
 
-			save_tokens(id_token, access_token, refresh_token, clientId)
+			save_tokens(id_token, access_token, refresh_token, clientId, apiUrl, domain, region, username, password)
 		end
 	end
 end
