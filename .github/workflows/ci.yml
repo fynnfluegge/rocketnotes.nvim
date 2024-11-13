@@ -21,6 +21,9 @@ jobs:
         with:
           luaVersion: "5.1" # Specify the Lua version you need
 
+      - name: Install LuaRocks
+        run: sudo apt-get install -y luarocks
+
       - name: Install Busted
         run: luarocks install busted --local
 
