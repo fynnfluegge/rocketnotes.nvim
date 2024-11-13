@@ -16,5 +16,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - name: Copy Source
+        run: cp -r ./lua/rocketnotes ./src/
+
       - name: Lua Busted
         uses: lunarmodules/busted@v2.2.0
