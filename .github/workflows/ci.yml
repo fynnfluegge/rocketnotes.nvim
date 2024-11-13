@@ -27,7 +27,8 @@ jobs:
       - name: Install Busted
         run: luarocks install busted --local
 
+      - name: Add LuaRocks bin to PATH
+        run: echo "::add-path::$(luarocks path --bin)"
+
       - name: Run tests
-        env:
-          LUA_PATH: "${{ github.workspace }}/rocketnotes.nvim/lua/?.lua;;"
         run: busted tests
