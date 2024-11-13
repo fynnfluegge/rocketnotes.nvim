@@ -16,19 +16,5 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Set up Lua
-        uses: leafo/gh-actions-lua@v8
-        with:
-          luaVersion: "5.1" # Specify the Lua version you need
-
-      - name: Install LuaRocks
-        run: sudo apt-get install -y luarocks
-
-      - name: Install Busted
-        run: luarocks install busted --local
-
-      - name: Add LuaRocks bin to PATH
-        run: echo "::add-path::$(luarocks path --bin)"
-
-      - name: Run tests
-        run: busted tests
+      - name: Run Busted
+        uses: lunarmodules/busted@v0
