@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Lua
+        uses: leafo/gh-actions-lua@v8
+        with:
+          luaVersion: "5.1" # Specify the Lua version you need
+
+      - name: Install Busted
+        run: luarocks install busted --local
+
+      - name: Run tests
+        env:
+          LUA_PATH: "${{ github.workspace }}/rocketnotes.nvim/lua/?.lua;;"
+        run: busted tests
