@@ -202,4 +202,40 @@ M.map = function(tbl)
 	return t
 end
 
+-- Function to escape special characters in strings
+local function escape_str(s)
+	return s:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\n", "\\n"):gsub("\r", "\\r"):gsub("\t", "\\t")
+end
+
+-- Function to convert a Lua table to JSON
+M.table_to_json = function(tbl)
+	local result = {}
+	local function serialize(tbl)
+		local is_array = (#tbl > 0)
+		table.insert(result, is_array and "[" or "{")
+		local first = true
+		for k, v in pairs(tbl) do
+			if not first then
+				table.insert(result, ",")
+			end
+			first = false
+			if not is_array then
+				table.insert(result, '"' .. escape_str(tostring(k)) .. '":')
+			end
+			if type(v) == "table" then
+				serialize(v)
+			elseif type(v) == "string" then
+				table.insert(result, '"' .. escape_str(v) .. '"')
+			elseif type(v) == "number" or type(v) == "boolean" then
+				table.insert(result, tostring(v))
+			else
+				error("Unsupported data type: " .. type(v))
+			end
+		end
+		table.insert(result, is_array and "]" or "}")
+	end
+	serialize(tbl)
+	return table.concat(result)
+end
+
 return M

@@ -39,6 +39,22 @@ local function getDocument(access_token, documentId, apiUrl, region)
 	return result
 end
 
+local function postDocument(access_token, apiUrl, region, document)
+	local command = string.format(
+		'curl -X POST "https://%s.execute-api.%s.amazonaws.com/saveDocument" -H "Authorization: Bearer %s" -H "Content-Type: application/json" -d \'%s\'',
+		apiUrl,
+		region,
+		access_token,
+		document
+	)
+
+	-- Capture the output
+	local handle = io.popen(command)
+	local result = handle:read("*a") -- read all output
+	handle:close()
+	return result
+end
+
 local function get_last_modified_date(file_path)
 	local handle = io.popen("stat -f %m " .. file_path)
 	local result = handle:read("*a")
@@ -72,7 +88,7 @@ local function saveLastSyncedTable(lastModifiedTable)
 	utils.write_file(lastModifiedTableFile, vim.fn.json_encode(lastModifiedTable))
 end
 
-local function saveDocument(document, path, lastRemoteModifiedTable, lastSyncedTable)
+local function saveDocument(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url, region)
 	document = vim.fn.json_decode(document)
 	local filePath = path .. "/" .. document.title .. ".md"
 	local localFileExists = utils.file_exists(filePath)
@@ -95,22 +111,22 @@ local function saveDocument(document, path, lastRemoteModifiedTable, lastSyncedT
 		local lastModified = get_last_modified_date(document_file:gsub(" ", "\\ "))
 		-- check if local file was modified and remote file was modified. If yes, save a second copy of the file
 		if localModified and remoteModified then
-			print("local and remote modified " .. document.title)
-
 			local document_file_remote = utils.create_file(path .. "/" .. document.title .. "_remote.md")
 			utils.write_file(document_file_remote, document.content)
 			return document.lastModified, lastModified
 		-- If only remote file was modified, update the local file
 		elseif remoteModified then
-			print("remote modified " .. document.title)
-			local document_file = utils.create_file(path .. "/" .. document.title .. ".md")
+			document_file = utils.create_file(path .. "/" .. document.title .. ".md")
 			utils.write_file(document_file, document.content)
 			lastModified = get_last_modified_date(document_file:gsub(" ", "\\ "))
 			return document.lastModified, lastModified
 		-- If only local file was modified, do save document post request
 		elseif localModified then
-			-- TODO Post request
-			print("TODO Post request " .. document.title)
+			document.content = utils.read_file(document_file)
+			document.recreateIndex = false
+			local body = {}
+			body.document = document
+			postDocument(access_token, api_url, region, utils.table_to_json(body))
 			return document.lastModified, lastModified
 		else
 			return document.lastModified, lastModified
@@ -133,7 +149,10 @@ local function create_document_space(
 		getDocument(access_token, documentId, apiUrl, region),
 		path,
 		lastRemoteModifiedTable,
-		lastSyncedTable
+		lastSyncedTable,
+		access_token,
+		apiUrl,
+		region
 	)
 end
 
@@ -197,6 +216,8 @@ M.sync = function()
 	else
 		print("data.documents is not a table")
 	end
+
+	---------------------------------------------
 	-- TODO upload newly local created documents
 	if local_document_tree then
 		local local_document_tree_table = vim.fn.json_decode(local_document_tree)
@@ -222,6 +243,8 @@ M.sync = function()
 			end
 		end
 	end
+	---------------------------------------------
+
 	utils.saveFile(utils.get_tree_cache_file(), remote_document_tree)
 	saveRemoteLastModifiedTable(lastRemoteModifiedTable)
 	saveLastSyncedTable(lastSyncedTable)
