@@ -1,14 +1,16 @@
 local save_tokens = require("rocketnotes.tokens").save_tokens
 local get_tokens = require("rocketnotes.tokens").get_tokens
+local tokens = require("rocketnotes.tokens")
 local utils = require("rocketnotes.utils")
 local assert = require("luassert")
 local mock = require("luassert.mock")
-local json = require("dkjson") -- You can use any JSON library for Lua
+local json = require("dkjson")
+local busted = require("busted")
 
 local token_file_path = "/tmp/tokens.json"
+local response_file_path = "/tmp/cognito_login_response.json"
 
 describe("save_tokens", function()
-	-- Mock data
 	local id_token = "id_token_value"
 	local access_token = "access_token_value"
 	local refresh_token = "refresh_token_value"
@@ -21,12 +23,11 @@ describe("save_tokens", function()
 
 	before_each(function()
 		os.remove(token_file_path)
-		local test = mock(utils, true)
-		test.get_config_path.returns("/tmp")
+		local utils_mock = mock(utils, true)
+		utils_mock.get_config_path.returns("/tmp")
 	end)
 
 	after_each(function()
-		-- Remove the mock token file
 		os.remove(token_file_path)
 	end)
 
@@ -52,26 +53,21 @@ describe("save_tokens", function()
 			password
 		)
 
-		print(content)
-
 		assert.are.equal(expected_content, content)
 	end)
 end)
 
 describe("get_tokens", function()
 	before_each(function()
-		-- Mock the get_token_file function
-		local test = mock(utils, true)
-		test.get_config_path.returns("/tmp")
+		local utils_mock = mock(utils, true)
+		utils_mock.get_config_path.returns("/tmp")
 
-		-- Create a mock token file with content
 		local file = io.open(token_file_path, "w")
 		file:write(
 			'{"IdToken": "id_token", "AccessToken": "access_token", "RefreshToken": "refresh_token", "ClientId": "client_id", "ApiUrl": "apiUrl", "Domain": "domain", "Region": "region", "Username": "username", "Password": "password"}'
 		)
 		file:close()
 
-		-- Mock the vim global object and its fn.json_decode function
 		_G.vim = {
 			fn = {
 				json_decode = function(content)
@@ -86,18 +82,14 @@ describe("get_tokens", function()
 	end)
 
 	after_each(function()
-		-- Remove the mock token file
 		os.remove(token_file_path)
 
-		-- Clear the vim global object
 		_G.vim = nil
 	end)
 
 	it("should return tokens from the mocked file path", function()
-		-- Call the get_tokens function
 		local id_token, access_token, refresh_token, clientId, apiUrl, domain, region, username, password = get_tokens()
 
-		-- Assert the returned values
 		assert.are.equal("id_token", id_token)
 		assert.are.equal("access_token", access_token)
 		assert.are.equal("refresh_token", refresh_token)
@@ -112,10 +104,8 @@ describe("get_tokens", function()
 	it("should return nil values if the token file is not found", function()
 		os.remove(token_file_path)
 
-		-- Call the get_tokens function
 		local id_token, access_token, refresh_token, clientId, apiUrl, domain, region, username, password = get_tokens()
 
-		-- Assert the returned values are nil
 		assert.is_nil(id_token)
 		assert.is_nil(access_token)
 		assert.is_nil(refresh_token)
@@ -128,15 +118,12 @@ describe("get_tokens", function()
 	end)
 
 	it("should return nil values if the token file is empty", function()
-		-- Create an empty mock token file
 		local file = io.open(token_file_path, "w")
 		file:write("")
 		file:close()
 
-		-- Call the get_tokens function
 		local id_token, access_token, refresh_token, clientId, apiUrl, domain, region, username, password = get_tokens()
 
-		-- Assert the returned values are nil
 		assert.is_nil(id_token)
 		assert.is_nil(access_token)
 		assert.is_nil(refresh_token)
@@ -146,5 +133,84 @@ describe("get_tokens", function()
 		assert.is_nil(region)
 		assert.is_nil(username)
 		assert.is_nil(password)
+	end)
+end)
+
+describe("refresh_token", function()
+	before_each(function()
+		local file = io.open(token_file_path, "w")
+		file:write(
+			'{"IdToken": "id_token", "AccessToken": "access_token", "RefreshToken": "refresh_token", "ClientId": "client_id", "ApiUrl": "apiUrl", "Domain": "domain", "Region": "region", "Username": "username", "Password": "password"}'
+		)
+		file:close()
+
+		tokens.get_tokens = function()
+			return "id_token",
+				"access_token",
+				"refresh_token",
+				"client_id",
+				"apiUrl",
+				"domain",
+				"region",
+				"username",
+				"password"
+		end
+
+		local os_mock = mock(os, true)
+		os_mock.execute.returns(0)
+
+		tokens.save_tokens = function() end
+
+		_G.vim = {
+			fn = {
+				json_decode = function(content)
+					local decoded, pos, err = json.decode(content)
+					if err then
+						error("Invalid JSON: " .. err)
+					end
+					return decoded
+				end,
+			},
+		}
+	end)
+
+	after_each(function()
+		_G.vim = nil
+		os.remove(token_file_path)
+		os.remove(response_file_path)
+	end)
+
+	it("should call save_tokens when tokens are refreshed successfully", function()
+		local file = io.open(response_file_path, "w")
+		file:write('{"id_token": "new_id_token", "access_token": "new_access_token" }')
+		file:close()
+
+		local save_tokens_mock = busted.mock(tokens)
+
+		tokens.refresh_token()
+
+		assert.spy(save_tokens_mock.save_tokens).was_called_with(
+			"new_id_token",
+			"new_access_token",
+			"refresh_token",
+			"client_id",
+			"apiUrl",
+			"domain",
+			"region",
+			"username",
+			"password"
+		)
+	end)
+
+	it("should handle refresh token expiration", function()
+		local file = io.open(response_file_path, "w")
+		file:write('{"error": "NotAuthorizedException"}')
+		file:close()
+
+		local save_tokens_mock = busted.mock(tokens)
+
+		tokens.refresh_token()
+
+		assert.spy(save_tokens_mock.save_tokens).was_not_called()
 	end)
 end)

@@ -79,7 +79,6 @@ M.refresh_token = function()
 	local result = os.execute(curl_command)
 
 	if result == 0 then
-		print("Refreshing tokens...")
 		local jq_command = string.format("jq . %s", temp_file)
 		local handle = io.popen(jq_command)
 		local response = handle:read("*all")
@@ -87,7 +86,6 @@ M.refresh_token = function()
 		os.remove(temp_file)
 
 		if response:find("NotAuthorizedException") then
-			print("Refresh token expired.")
 			-- TODO login again
 		else
 			local tokens = vim.fn.json_decode(response)
