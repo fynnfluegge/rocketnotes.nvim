@@ -1,4 +1,4 @@
-local tokens = require("rocketnotes.tokena")
+local tokens = require("rocketnotes.tokens")
 
 ---@class LoginModule
 local M = {}

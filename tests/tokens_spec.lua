@@ -83,7 +83,6 @@ describe("get_tokens", function()
 
 	after_each(function()
 		os.remove(token_file_path)
-
 		_G.vim = nil
 	end)
 
@@ -137,6 +136,8 @@ describe("get_tokens", function()
 end)
 
 describe("refresh_token", function()
+	local original_tokens_get_tokens
+	local original_tokens_save_tokens
 	before_each(function()
 		local file = io.open(token_file_path, "w")
 		file:write(
@@ -144,6 +145,7 @@ describe("refresh_token", function()
 		)
 		file:close()
 
+		original_tokens_get_tokens = tokens.get_tokens
 		tokens.get_tokens = function()
 			return "id_token",
 				"access_token",
@@ -159,6 +161,7 @@ describe("refresh_token", function()
 		local os_mock = mock(os, true)
 		os_mock.execute.returns(0)
 
+		original_tokens_save_tokens = tokens.save_tokens
 		tokens.save_tokens = function() end
 
 		_G.vim = {
@@ -178,6 +181,8 @@ describe("refresh_token", function()
 		_G.vim = nil
 		os.remove(token_file_path)
 		os.remove(response_file_path)
+		tokens.get_tokens = original_tokens_get_tokens
+		tokens.save_tokens = original_tokens_save_tokens
 	end)
 
 	it("should call save_tokens when tokens are refreshed successfully", function()
@@ -185,11 +190,11 @@ describe("refresh_token", function()
 		file:write('{"id_token": "new_id_token", "access_token": "new_access_token" }')
 		file:close()
 
-		local save_tokens_mock = busted.mock(tokens)
+		local tokens_mock = busted.mock(tokens)
 
 		tokens.refresh_token()
 
-		assert.spy(save_tokens_mock.save_tokens).was_called_with(
+		assert.spy(tokens_mock.save_tokens).was_called_with(
 			"new_id_token",
 			"new_access_token",
 			"refresh_token",
@@ -207,10 +212,10 @@ describe("refresh_token", function()
 		file:write('{"error": "NotAuthorizedException"}')
 		file:close()
 
-		local save_tokens_mock = busted.mock(tokens)
+		local tokens_mock = busted.mock(tokens)
 
 		tokens.refresh_token()
 
-		assert.spy(save_tokens_mock.save_tokens).was_not_called()
+		assert.spy(tokens_mock.save_tokens).was_not_called()
 	end)
 end)
