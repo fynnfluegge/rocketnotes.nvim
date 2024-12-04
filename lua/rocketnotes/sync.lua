@@ -16,9 +16,8 @@ local function getTree(access_token, apiUrl, region)
 		access_token
 	)
 
-	-- Capture the output
 	local handle = io.popen(command)
-	local result = handle:read("*a") -- read all output
+	local result = handle:read("*a")
 	handle:close()
 	return result
 end
@@ -32,9 +31,8 @@ local function getDocument(access_token, documentId, apiUrl, region)
 		access_token
 	)
 
-	-- Capture the output
 	local handle = io.popen(command)
-	local result = handle:read("*a") -- read all output
+	local result = handle:read("*a")
 	handle:close()
 	return result
 end
@@ -48,9 +46,8 @@ local function postDocument(access_token, apiUrl, region, document)
 		document
 	)
 
-	-- Capture the output
 	local handle = io.popen(command)
-	local result = handle:read("*a") -- read all output
+	local result = handle:read("*a")
 	handle:close()
 	return result
 end
