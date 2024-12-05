@@ -26,7 +26,7 @@ jobs:
         run: luarocks install busted --local
 
       - name: Copy Source
-        run: cp -r ./lua/ ./src/
+        run: cp -r . ./src/
 
       - name: List src directory contents
         run: ls -R ./src/
