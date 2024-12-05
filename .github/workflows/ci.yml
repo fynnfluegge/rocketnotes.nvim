@@ -37,4 +37,4 @@ jobs:
         run: ls -R ./src/
 
       - name: Run tests with Lua Busted
-        run: LUA_PATH="/src/lua/?.lua;;" ~/.luarocks/bin/busted ./src
+        run: LUA_PATH="./src/lua/?.lua;;" ~/.luarocks/bin/busted ./src
