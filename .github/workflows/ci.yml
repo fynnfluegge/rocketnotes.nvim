@@ -32,4 +32,4 @@ jobs:
         run: ls -R ./src/
 
       - name: Run tests with Lua Busted
-        run: ~/.luarocks/bin/busted
+        run: ~/.luarocks/bin/busted ./src
