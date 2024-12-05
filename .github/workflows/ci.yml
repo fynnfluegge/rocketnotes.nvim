@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
+        run: sudo apt-get update && sudo apt-get install -y jq luarocks
 
       - name: Verify jq installation
         run: jq --version
