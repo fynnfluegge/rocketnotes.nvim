@@ -22,6 +22,9 @@ jobs:
       - name: Verify jq installation
         run: jq --version
 
+      - name: Install Busted
+        run: luarocks install busted --local
+
       - name: Copy Source
         run: cp -r ./lua/ ./src/
 
@@ -29,7 +32,4 @@ jobs:
         run: ls -R ./src/
 
       - name: Run tests with Lua Busted
-        run: |
-          sudo apt-get install -y luarocks
-          luarocks install busted
-          busted
+        run: ~/.luarocks/bin/busted
