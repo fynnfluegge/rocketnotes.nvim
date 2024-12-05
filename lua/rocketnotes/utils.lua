@@ -85,6 +85,32 @@ M.get_workspace_path = function()
 	end
 end
 
+M.loadRemoteLastModifiedTable = function()
+	local lastModifiedTableFile = M.get_config_path() .. "/lastRemoteModified.json"
+	if M.file_exists(lastModifiedTableFile) then
+		return vim.fn.json_decode(M.read_file(lastModifiedTableFile))
+	end
+	return {}
+end
+
+M.loadLastSyncedTable = function()
+	local lastModifiedTableFile = M.get_config_path() .. "/lastSynced.json"
+	if M.file_exists(lastModifiedTableFile) then
+		return vim.fn.json_decode(M.read_file(lastModifiedTableFile))
+	end
+	return {}
+end
+
+M.saveRemoteLastModifiedTable = function(lastRemoteModifiedTable)
+	local lastModifiedTableFile = M.create_file(M.get_config_path() .. "/lastRemoteModified.json")
+	M.write_file(lastModifiedTableFile, vim.fn.json_encode(lastRemoteModifiedTable))
+end
+
+M.saveLastSyncedTable = function(lastModifiedTable)
+	local lastModifiedTableFile = M.create_file(M.get_config_path() .. "/lastSynced.json")
+	M.write_file(lastModifiedTableFile, vim.fn.json_encode(lastModifiedTable))
+end
+
 M.decodeToken = function(token)
 	local jq_command =
 		string.format("echo '%s' | jq -R 'split(\".\") | select(length > 0) | .[1] | @base64d | fromjson'", token)
@@ -167,6 +193,13 @@ M.traverseDocumentTree = function(t, callback)
 	for _, node in ipairs(t) do
 		traverse(node)
 	end
+end
+
+M.get_last_modified_date_of_file = function(file_path)
+	local handle = io.popen("stat -f %m " .. file_path)
+	local result = handle:read("*a")
+	handle:close()
+	return tonumber(result)
 end
 
 M.traverseDirectory = function(dir, callback)

@@ -1,5 +1,5 @@
 local utils = require("rocketnotes.utils")
-local login = require("rocketnotes.login")
+local tokens = require("rocketnotes.tokens")
 
 ---@class InstallModule
 local M = {}
@@ -52,40 +52,7 @@ local function postDocument(access_token, apiUrl, region, document)
 	return result
 end
 
-local function get_last_modified_date(file_path)
-	local handle = io.popen("stat -f %m " .. file_path)
-	local result = handle:read("*a")
-	handle:close()
-	return tonumber(result)
-end
-
-local function loadRemoteLastModifiedTable()
-	local lastModifiedTableFile = utils.get_config_path() .. "/lastRemoteModified.json"
-	if utils.file_exists(lastModifiedTableFile) then
-		return vim.fn.json_decode(utils.read_file(lastModifiedTableFile))
-	end
-	return {}
-end
-
-local function loadLastSyncedTable()
-	local lastModifiedTableFile = utils.get_config_path() .. "/lastSynced.json"
-	if utils.file_exists(lastModifiedTableFile) then
-		return vim.fn.json_decode(utils.read_file(lastModifiedTableFile))
-	end
-	return {}
-end
-
-local function saveRemoteLastModifiedTable(lastRemoteModifiedTable)
-	local lastModifiedTableFile = utils.create_file(utils.get_config_path() .. "/lastRemoteModified.json")
-	utils.write_file(lastModifiedTableFile, vim.fn.json_encode(lastRemoteModifiedTable))
-end
-
-local function saveLastSyncedTable(lastModifiedTable)
-	local lastModifiedTableFile = utils.create_file(utils.get_config_path() .. "/lastSynced.json")
-	utils.write_file(lastModifiedTableFile, vim.fn.json_encode(lastModifiedTable))
-end
-
-local function saveDocument(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url, region)
+M.saveDocument = function(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url, region)
 	document = vim.fn.json_decode(document)
 	local filePath = path .. "/" .. document.title .. ".md"
 	local localFileExists = utils.file_exists(filePath)
@@ -93,9 +60,9 @@ local function saveDocument(document, path, lastRemoteModifiedTable, lastSyncedT
 	if not localFileExists then
 		local document_file = utils.create_file(filePath)
 		utils.write_file(document_file, document.content)
-		return document.lastModified, get_last_modified_date(document_file:gsub(" ", "\\ "))
+		return document.lastModified, utils.get_last_modified_date_of_file(document_file:gsub(" ", "\\ "))
 	else
-		local localFileLastModifiedData = get_last_modified_date(filePath:gsub(" ", "\\ "))
+		local localFileLastModifiedData = utils.get_last_modified_date_of_file(filePath:gsub(" ", "\\ "))
 		local localModified = true
 		local remoteModified = true
 		if localFileLastModifiedData == lastSyncedTable[document.id] then
@@ -105,7 +72,7 @@ local function saveDocument(document, path, lastRemoteModifiedTable, lastSyncedT
 			remoteModified = false
 		end
 		local document_file = utils.create_file(path .. "/" .. document.title .. ".md")
-		local lastModified = get_last_modified_date(document_file:gsub(" ", "\\ "))
+		local lastModified = utils.get_last_modified_date_of_file(document_file:gsub(" ", "\\ "))
 		-- check if local file was modified and remote file was modified. If yes, save a second copy of the file
 		if localModified and remoteModified then
 			local document_file_remote = utils.create_file(path .. "/" .. document.title .. "_remote.md")
@@ -115,7 +82,7 @@ local function saveDocument(document, path, lastRemoteModifiedTable, lastSyncedT
 		elseif remoteModified then
 			document_file = utils.create_file(path .. "/" .. document.title .. ".md")
 			utils.write_file(document_file, document.content)
-			lastModified = get_last_modified_date(document_file:gsub(" ", "\\ "))
+			lastModified = utils.get_last_modified_date_of_file(document_file:gsub(" ", "\\ "))
 			return document.lastModified, lastModified
 		-- If only local file was modified, do save document post request
 		elseif localModified then
@@ -189,19 +156,19 @@ local function process_document(
 end
 
 M.sync = function()
-	local id_token, access_token, refresh_token, clientId, api_url, domain, region = login.get_tokens()
+	local id_token, access_token, refresh_token, clientId, api_url, domain, region = tokens.get_tokens()
 	print("Installing RocketNotes...")
 
 	local local_document_tree = utils.read_file(utils.get_tree_cache_file())
 	local remote_document_tree = getTree(access_token, api_url, region)
-	local lastRemoteModifiedTable = loadRemoteLastModifiedTable()
-	local lastSyncedTable = loadLastSyncedTable()
+	local lastRemoteModifiedTable = utils.loadRemoteLastModifiedTable()
+	local lastSyncedTable = utils.loadLastSyncedTable()
 
 	local start_index, end_index = string.find(remote_document_tree, "Unauthorized")
 	if start_index then
 		print("unauthorized")
-		login.refresh_token()
-		id_token, access_token = login.get_tokens()
+		tokens.refresh_token()
+		id_token, access_token = tokens.get_tokens()
 		remote_document_tree = getTree(access_token, api_url, region)
 	end
 
@@ -243,8 +210,8 @@ M.sync = function()
 	---------------------------------------------
 
 	utils.saveFile(utils.get_tree_cache_file(), remote_document_tree)
-	saveRemoteLastModifiedTable(lastRemoteModifiedTable)
-	saveLastSyncedTable(lastSyncedTable)
+	utils.saveRemoteLastModifiedTable(lastRemoteModifiedTable)
+	utils.saveLastSyncedTable(lastSyncedTable)
 end
 
 return M
