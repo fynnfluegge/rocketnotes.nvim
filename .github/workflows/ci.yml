@@ -36,8 +36,5 @@ jobs:
       - name: List src directory contents
         run: ls -R ./src/
 
-      - name: Set Lua path
-        run: echo "::set-env name=LUA_PATH::./src/lua/?.lua;;"
-
       - name: Run tests with Lua Busted
-        run: ~/.luarocks/bin/busted ./src
+        run: LUA_PATH="/src/lua/?.lua;;" ~/.luarocks/bin/busted ./src
