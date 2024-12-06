@@ -190,11 +190,11 @@ describe("refresh_token", function()
 		file:write('{"id_token": "new_id_token", "access_token": "new_access_token" }')
 		file:close()
 
-		local tokens_mock = busted.mock(tokens)
+		local tokens_spy = busted.mock(tokens)
 
 		tokens.refresh_token()
 
-		assert.spy(tokens_mock.save_tokens).was_called_with(
+		assert.spy(tokens_spy.save_tokens).was_called_with(
 			"new_id_token",
 			"new_access_token",
 			"refresh_token",
@@ -205,6 +205,7 @@ describe("refresh_token", function()
 			"username",
 			"password"
 		)
+		tokens_spy.save_tokens:clear()
 	end)
 
 	it("should handle refresh token expiration", function()
@@ -212,10 +213,11 @@ describe("refresh_token", function()
 		file:write('{"error": "NotAuthorizedException"}')
 		file:close()
 
-		local tokens_mock = busted.mock(tokens)
+		local tokens_spy = busted.mock(tokens)
 
 		tokens.refresh_token()
 
-		assert.spy(tokens_mock.save_tokens).was_not_called()
+		assert.spy(tokens_spy.save_tokens).was_not_called()
+		tokens_spy.save_tokens:clear()
 	end)
 end)

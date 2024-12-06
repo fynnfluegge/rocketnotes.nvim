@@ -2,6 +2,7 @@ local login = require("rocketnotes.login")
 local tokens = require("rocketnotes.tokens")
 local busted = require("busted")
 local assert = require("luassert")
+local mock = require("luassert.mock")
 
 local response_file_path = "/tmp/cognito_login_response.json"
 
@@ -9,8 +10,7 @@ describe("LoginModule", function()
 	local original_os_execute
 	local original_vim_fn_input
 	local original_vim_fn_inputsecret
-	local original_tokens_get_tokens
-	local original_tokens_save_tokens
+	local tokens_spy
 
 	before_each(function()
 		original_os_execute = os.execute
@@ -36,45 +36,29 @@ describe("LoginModule", function()
 			return "mock_secret"
 		end
 
-		-- Mock tokens.get_tokens
-		original_tokens_get_tokens = tokens.get_tokens
-		tokens.get_tokens = function()
-			return "id_token",
-				"access_token",
-				"refresh_token",
-				"clientId",
-				"api_url",
-				"domain",
-				"region",
-				"username",
-				"password"
-		end
-
-		-- Mock tokens.save_tokens
-		original_tokens_save_tokens = tokens.save_tokens
-		tokens.save_tokens = function(
-			id_token,
-			access_token,
-			refresh_token,
-			clientId,
-			apiUrl,
-			domain,
-			region,
-			username,
-			password
+		local tokens_mock = mock(tokens, true)
+		tokens_mock.get_tokens.returns(
+			"id_token",
+			"access_token",
+			"refresh_token",
+			"clientId",
+			"api_url",
+			"domain",
+			"region",
+			"username",
+			"password"
 		)
-			-- Do nothing
-		end
+		tokens_mock.save_tokens.returns()
+
+		tokens_spy = busted.mock(tokens)
 	end)
 
 	after_each(function()
-		-- Restore original functions
 		os.execute = original_os_execute
 		vim.fn.input = original_vim_fn_input
 		vim.fn.inputsecret = original_vim_fn_inputsecret
-		tokens.get_tokens = original_tokens_get_tokens
-		tokens.save_tokens = original_tokens_save_tokens
 		os.remove(response_file_path)
+		tokens_spy.save_tokens:clear()
 	end)
 
 	it("should login successfully", function()
@@ -82,9 +66,8 @@ describe("LoginModule", function()
 		file:write('{"id_token": "new_id_token", "access_token": "new_access_token" }')
 		file:close()
 
-		local tokens_mock = busted.mock(tokens)
 		login.login()
-		assert.spy(tokens_mock.save_tokens).was_called()
+		assert.spy(tokens_spy.save_tokens).was_called()
 	end)
 
 	it("should handle incorrect username or password", function()
@@ -92,8 +75,7 @@ describe("LoginModule", function()
 		file:write('{"error": "NotAuthorizedException"}')
 		file:close()
 
-		local tokens_mock = busted.mock(tokens)
 		login.login()
-		assert.spy(tokens_mock.save_tokens).was_not_called()
+		assert.spy(tokens_spy.save_tokens).was_not_called()
 	end)
 end)
