@@ -15,39 +15,36 @@ M.saveDocument = function(document, path, lastRemoteModifiedTable, lastSyncedTab
 		utils.write_file(document_file, document.content)
 		return document.lastModified, utils.get_last_modified_date_of_file(document_file:gsub(" ", "\\ "))
 	else
-		local localFileLastModifiedData = utils.get_last_modified_date_of_file(filePath:gsub(" ", "\\ "))
+		local localFileLastModifiedDate = utils.get_last_modified_date_of_file(filePath:gsub(" ", "\\ "))
 		local localModified = true
 		local remoteModified = true
-		if localFileLastModifiedData == lastSyncedTable[document.id] then
+		if localFileLastModifiedDate == lastSyncedTable[document.id] then
 			localModified = false
 		end
 		if document.lastModified == lastRemoteModifiedTable[document.id] then
 			remoteModified = false
 		end
-		local document_file = utils.create_file(path .. "/" .. document.title .. ".md")
-		local lastModified = utils.get_last_modified_date_of_file(document_file:gsub(" ", "\\ "))
 		-- check if local file was modified and remote file was modified. If yes, save a second copy of the file
 		if localModified and remoteModified then
 			local document_file_remote = utils.create_file(path .. "/" .. document.title .. "_remote.md")
 			utils.write_file(document_file_remote, document.content)
-			return document.lastModified, lastModified
+			return document.lastModified, localFileLastModifiedDate
 		-- If only remote file was modified, update the local file
 		elseif remoteModified then
-			print("Only remote file was modified")
-			document_file = utils.create_file(path .. "/" .. document.title .. ".md")
+			local document_file = utils.create_file(path .. "/" .. document.title .. ".md")
 			utils.write_file(document_file, document.content)
-			lastModified = utils.get_last_modified_date_of_file(document_file:gsub(" ", "\\ "))
+			local lastModified = utils.get_last_modified_date_of_file(document_file:gsub(" ", "\\ "))
 			return document.lastModified, lastModified
 		-- If only local file was modified, do save document post request
 		elseif localModified then
-			document.content = utils.read_file(document_file)
+			document.content = utils.read_file(filePath)
 			document.recreateIndex = false
 			local body = {}
 			body.document = document
 			http.postDocument(access_token, api_url, region, body)
-			return document.lastModified, lastModified
+			return document.lastModified, localFileLastModifiedDate
 		else
-			return document.lastModified, lastModified
+			return document.lastModified, localFileLastModifiedDate
 		end
 	end
 end
