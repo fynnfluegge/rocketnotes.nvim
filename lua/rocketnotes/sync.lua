@@ -1,56 +1,9 @@
 local utils = require("rocketnotes.utils")
 local tokens = require("rocketnotes.tokens")
+local http = require("rocketnotes.http")
 
 ---@class InstallModule
 local M = {}
-
-local function getTree(access_token, apiUrl, region)
-	local decoded_token = utils.decodeToken(access_token)
-	local user_id = decoded_token.username
-
-	local command = string.format(
-		'curl -X GET "https://%s.execute-api.%s.amazonaws.com/documentTree/%s" -H "Authorization: Bearer %s"',
-		apiUrl,
-		region,
-		user_id,
-		access_token
-	)
-
-	local handle = io.popen(command)
-	local result = handle:read("*a")
-	handle:close()
-	return result
-end
-
-local function getDocument(access_token, documentId, apiUrl, region)
-	local command = string.format(
-		'curl -X GET "https://%s.execute-api.%s.amazonaws.com/document/%s" -H "Authorization: Bearer %s"',
-		apiUrl,
-		region,
-		documentId,
-		access_token
-	)
-
-	local handle = io.popen(command)
-	local result = handle:read("*a")
-	handle:close()
-	return result
-end
-
-local function postDocument(access_token, apiUrl, region, document)
-	local command = string.format(
-		'curl -X POST "https://%s.execute-api.%s.amazonaws.com/saveDocument" -H "Authorization: Bearer %s" -H "Content-Type: application/json" -d \'%s\'',
-		apiUrl,
-		region,
-		access_token,
-		document
-	)
-
-	local handle = io.popen(command)
-	local result = handle:read("*a")
-	handle:close()
-	return result
-end
 
 M.saveDocument = function(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url, region)
 	document = vim.fn.json_decode(document)
@@ -80,6 +33,7 @@ M.saveDocument = function(document, path, lastRemoteModifiedTable, lastSyncedTab
 			return document.lastModified, lastModified
 		-- If only remote file was modified, update the local file
 		elseif remoteModified then
+			print("Only remote file was modified")
 			document_file = utils.create_file(path .. "/" .. document.title .. ".md")
 			utils.write_file(document_file, document.content)
 			lastModified = utils.get_last_modified_date_of_file(document_file:gsub(" ", "\\ "))
@@ -90,7 +44,7 @@ M.saveDocument = function(document, path, lastRemoteModifiedTable, lastSyncedTab
 			document.recreateIndex = false
 			local body = {}
 			body.document = document
-			postDocument(access_token, api_url, region, utils.table_to_json(body))
+			http.postDocument(access_token, api_url, region, body)
 			return document.lastModified, lastModified
 		else
 			return document.lastModified, lastModified
@@ -109,8 +63,8 @@ local function create_document_space(
 )
 	local path = utils.get_workspace_path() .. "/" .. documentPath
 	utils.create_directory_if_not_exists(path)
-	return saveDocument(
-		getDocument(access_token, documentId, apiUrl, region),
+	return M.saveDocument(
+		http.getDocument(access_token, documentId, apiUrl, region),
 		path,
 		lastRemoteModifiedTable,
 		lastSyncedTable,
@@ -160,7 +114,7 @@ M.sync = function()
 	print("Installing RocketNotes...")
 
 	local local_document_tree = utils.read_file(utils.get_tree_cache_file())
-	local remote_document_tree = getTree(access_token, api_url, region)
+	local remote_document_tree = http.getTree(access_token, api_url, region)
 	local lastRemoteModifiedTable = utils.loadRemoteLastModifiedTable()
 	local lastSyncedTable = utils.loadLastSyncedTable()
 
@@ -169,7 +123,7 @@ M.sync = function()
 		print("unauthorized")
 		tokens.refresh_token()
 		id_token, access_token = tokens.get_tokens()
-		remote_document_tree = getTree(access_token, api_url, region)
+		remote_document_tree = http.getTree(access_token, api_url, region)
 	end
 
 	local remote_document_tree_table = vim.fn.json_decode(remote_document_tree)
