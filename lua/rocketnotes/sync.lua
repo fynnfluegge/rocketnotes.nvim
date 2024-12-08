@@ -60,15 +60,8 @@ M.create_document_space = function(
 )
 	local path = utils.get_workspace_path() .. "/" .. documentPath
 	utils.create_directory_if_not_exists(path)
-	return M.saveDocument(
-		http.getDocument(access_token, documentId, apiUrl, region),
-		path,
-		lastRemoteModifiedTable,
-		lastSyncedTable,
-		access_token,
-		apiUrl,
-		region
-	)
+	local remoteDocument = http.getDocument(access_token, documentId, apiUrl, region)
+	return M.saveDocument(remoteDocument, path, lastRemoteModifiedTable, lastSyncedTable, access_token, apiUrl, region)
 end
 
 M.process_document = function(
@@ -81,7 +74,7 @@ M.process_document = function(
 	lastSyncedTable
 )
 	local document_name = parent_name and (parent_name .. "/" .. document.name) or document.name
-	lastRemoteModifiedTable[document.id], lastSyncedTable[document.id] = create_document_space(
+	lastRemoteModifiedTable[document.id], lastSyncedTable[document.id] = M.create_document_space(
 		document.id,
 		document_name,
 		access_token,
@@ -93,7 +86,7 @@ M.process_document = function(
 
 	if document.children and type(document.children) == "table" then
 		for _, child_document in ipairs(document.children) do
-			process_document(
+			M.process_document(
 				child_document,
 				document_name,
 				access_token,
@@ -141,7 +134,6 @@ M.sync = function()
 		local created_documents = {}
 		for _, document_path in ipairs(local_document_paths) do
 			local parent_folder, file_name = utils.getFileNameAndParentDir(document_path)
-			print(parent_folder, file_name)
 			if
 				not remote_documents[file_name]
 				and (remote_documents[parent_folder] or parent_folder == "root")

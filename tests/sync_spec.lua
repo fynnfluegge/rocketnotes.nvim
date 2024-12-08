@@ -240,9 +240,7 @@ describe("rocketnotes.sync", function()
 			tokens_spy = busted.mock(tokens)
 
 			original_process_document = sync.process_document
-			sync.process_document = function()
-				return
-			end
+			sync.process_document = function() end
 			process_document_spy = busted.spy.on(sync, "process_document")
 
 			_G.vim = {
@@ -259,9 +257,14 @@ describe("rocketnotes.sync", function()
 		end)
 
 		after_each(function()
-			sync.process_document = original_process_document
 			process_document_spy:revert()
+			sync.process_document = original_process_document
 			_G.vim = nil
+			tokens_spy.get_tokens:clear()
+			tokens_spy.refresh_token:clear()
+			utils_spy.getAllFiles:clear()
+			utils_spy.getFileNameAndParentDir:clear()
+			utils_spy.traverseDirectory:clear()
 		end)
 
 		it("should sync documents correctly", function()
@@ -363,6 +366,194 @@ describe("rocketnotes.sync", function()
 			busted.assert.spy(utils_spy.getAllFiles).was_called_with("/path/to/workspace")
 			busted.assert.spy(utils_spy.getFileNameAndParentDir).was_called_with("/path/to/doc1.md")
 			busted.assert.spy(utils_spy.traverseDirectory).was_called(1)
+		end)
+	end)
+
+	describe("create_document_space", function()
+		local documentId = "doc1"
+		local documentPath = "path/to/doc1"
+		local access_token = "dummy_access_token"
+		local apiUrl = "https://api.example.com"
+		local region = "us-west-1"
+		local lastRemoteModifiedTable = {}
+		local lastSyncedTable = {}
+		local documentContent =
+			'{"id": "doc1", "title": "Test Document", "content": "This is a test document.", "lastModified": "2023-10-01T12:00:00Z"}'
+		local workspace_path = "/workspace"
+
+		local utils_mock
+		local http_mock
+		local utils_spy
+		local http_spy
+		local original_saveDocument
+		local save_document_spy
+
+		before_each(function()
+			utils_mock = mock(utils, true)
+			http_mock = mock(http, true)
+			utils_spy = busted.mock(utils)
+			http_spy = busted.mock(http)
+
+			utils_mock.get_workspace_path.returns(workspace_path)
+			utils_mock.create_directory_if_not_exists.returns()
+			http_mock.getDocument.returns(documentContent)
+			original_saveDocument = sync.saveDocument
+			sync.saveDocument = function() end
+			save_document_spy = busted.spy.on(sync, "saveDocument")
+		end)
+
+		after_each(function()
+			utils_spy.get_workspace_path:clear()
+			http_spy.getDocument:clear()
+			sync.saveDocument = original_saveDocument
+			save_document_spy:revert()
+		end)
+
+		it("should create document space and save document", function()
+			sync.create_document_space(
+				documentId,
+				documentPath,
+				access_token,
+				apiUrl,
+				region,
+				lastRemoteModifiedTable,
+				lastSyncedTable
+			)
+
+			local expected_path = workspace_path .. "/" .. documentPath
+			busted.assert.spy(utils_spy.create_directory_if_not_exists).was_called_with(expected_path)
+			busted.assert.spy(http_spy.getDocument).was_called_with(access_token, documentId, apiUrl, region)
+			busted.assert
+				.spy(save_document_spy)
+				.was_called_with(documentContent, expected_path, lastRemoteModifiedTable, lastSyncedTable, access_token, apiUrl, region)
+		end)
+	end)
+
+	describe("process_document", function()
+		local document = {
+			id = "doc1",
+			name = "Test Document",
+			children = {
+				{
+					id = "child_doc1",
+					name = "Child Document 1",
+				},
+				{
+					id = "child_doc2",
+					name = "Child Document 2",
+				},
+			},
+		}
+		local parent_name = nil
+		local access_token = "dummy_access_token"
+		local api_url = "https://api.example.com"
+		local region = "us-west-1"
+		local lastRemoteModifiedTable = {}
+		local lastSyncedTable = {}
+
+		local original_create_document_space
+		local process_document_spy
+		local create_document_space_spy
+
+		before_each(function()
+			process_document_spy = busted.spy.on(sync, "process_document")
+			original_create_document_space = sync.create_document_space
+			sync.create_document_space = function() end
+			create_document_space_spy = busted.spy.on(sync, "create_document_space")
+		end)
+
+		after_each(function()
+			process_document_spy:revert()
+			sync.create_document_space = original_create_document_space
+			create_document_space_spy:revert()
+		end)
+
+		it("should process a document and its children", function()
+			sync.process_document(
+				document,
+				parent_name,
+				access_token,
+				api_url,
+				region,
+				lastRemoteModifiedTable,
+				lastSyncedTable
+			)
+
+			busted.assert.spy(create_document_space_spy).was_called(3)
+			busted.assert.spy(process_document_spy).was_called(3)
+
+			busted.assert
+				.spy(create_document_space_spy)
+				.was_called_with(document.id, document.name, access_token, api_url, region, lastRemoteModifiedTable, lastSyncedTable)
+
+			busted.assert.spy(create_document_space_spy).was_called_with(
+				document.children[1].id,
+				document.name .. "/" .. document.children[1].name,
+				access_token,
+				api_url,
+				region,
+				lastRemoteModifiedTable,
+				lastSyncedTable
+			)
+
+			busted.assert.spy(create_document_space_spy).was_called_with(
+				document.children[2].id,
+				document.name .. "/" .. document.children[2].name,
+				access_token,
+				api_url,
+				region,
+				lastRemoteModifiedTable,
+				lastSyncedTable
+			)
+
+			busted.assert.spy(process_document_spy).was_called_with(
+				document.children[1],
+				document.name,
+				access_token,
+				api_url,
+				region,
+				lastRemoteModifiedTable,
+				lastSyncedTable
+			)
+
+			busted.assert.spy(process_document_spy).was_called_with(
+				document.children[2],
+				document.name,
+				access_token,
+				api_url,
+				region,
+				lastRemoteModifiedTable,
+				lastSyncedTable
+			)
+		end)
+
+		it("should process a document without children", function()
+			local single_document = {
+				id = "doc2",
+				name = "Single Document",
+			}
+
+			sync.process_document(
+				single_document,
+				parent_name,
+				access_token,
+				api_url,
+				region,
+				lastRemoteModifiedTable,
+				lastSyncedTable
+			)
+
+			busted.assert.spy(create_document_space_spy).was_called(1)
+			busted.assert.spy(process_document_spy).was_called(1)
+			busted.assert.spy(create_document_space_spy).was_called_with(
+				single_document.id,
+				single_document.name,
+				access_token,
+				api_url,
+				region,
+				lastRemoteModifiedTable,
+				lastSyncedTable
+			)
 		end)
 	end)
 end)
