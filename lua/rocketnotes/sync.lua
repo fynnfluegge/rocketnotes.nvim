@@ -1,94 +1,11 @@
 local utils = require("rocketnotes.utils")
-local login = require("rocketnotes.login")
+local tokens = require("rocketnotes.tokens")
+local http = require("rocketnotes.http")
 
 ---@class InstallModule
 local M = {}
 
-local function getTree(access_token, apiUrl, region)
-	local decoded_token = utils.decodeToken(access_token)
-	local user_id = decoded_token.username
-
-	local command = string.format(
-		'curl -X GET "https://%s.execute-api.%s.amazonaws.com/documentTree/%s" -H "Authorization: Bearer %s"',
-		apiUrl,
-		region,
-		user_id,
-		access_token
-	)
-
-	-- Capture the output
-	local handle = io.popen(command)
-	local result = handle:read("*a") -- read all output
-	handle:close()
-	return result
-end
-
-local function getDocument(access_token, documentId, apiUrl, region)
-	local command = string.format(
-		'curl -X GET "https://%s.execute-api.%s.amazonaws.com/document/%s" -H "Authorization: Bearer %s"',
-		apiUrl,
-		region,
-		documentId,
-		access_token
-	)
-
-	-- Capture the output
-	local handle = io.popen(command)
-	local result = handle:read("*a") -- read all output
-	handle:close()
-	return result
-end
-
-local function postDocument(access_token, apiUrl, region, document)
-	local command = string.format(
-		'curl -X POST "https://%s.execute-api.%s.amazonaws.com/saveDocument" -H "Authorization: Bearer %s" -H "Content-Type: application/json" -d \'%s\'',
-		apiUrl,
-		region,
-		access_token,
-		document
-	)
-
-	-- Capture the output
-	local handle = io.popen(command)
-	local result = handle:read("*a") -- read all output
-	handle:close()
-	return result
-end
-
-local function get_last_modified_date(file_path)
-	local handle = io.popen("stat -f %m " .. file_path)
-	local result = handle:read("*a")
-	handle:close()
-	return tonumber(result)
-end
-
-local function loadRemoteLastModifiedTable()
-	local lastModifiedTableFile = utils.get_config_path() .. "/lastRemoteModified.json"
-	if utils.file_exists(lastModifiedTableFile) then
-		return vim.fn.json_decode(utils.read_file(lastModifiedTableFile))
-	end
-	return {}
-end
-
-local function loadLastSyncedTable()
-	local lastModifiedTableFile = utils.get_config_path() .. "/lastSynced.json"
-	if utils.file_exists(lastModifiedTableFile) then
-		return vim.fn.json_decode(utils.read_file(lastModifiedTableFile))
-	end
-	return {}
-end
-
-local function saveRemoteLastModifiedTable(lastRemoteModifiedTable)
-	local lastModifiedTableFile = utils.create_file(utils.get_config_path() .. "/lastRemoteModified.json")
-	utils.write_file(lastModifiedTableFile, vim.fn.json_encode(lastRemoteModifiedTable))
-end
-
-local function saveLastSyncedTable(lastModifiedTable)
-	local lastModifiedTableFile = utils.create_file(utils.get_config_path() .. "/lastSynced.json")
-	utils.write_file(lastModifiedTableFile, vim.fn.json_encode(lastModifiedTable))
-end
-
-local function saveDocument(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url, region)
+M.saveDocument = function(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url, region)
 	document = vim.fn.json_decode(document)
 	local filePath = path .. "/" .. document.title .. ".md"
 	local localFileExists = utils.file_exists(filePath)
@@ -96,45 +13,43 @@ local function saveDocument(document, path, lastRemoteModifiedTable, lastSyncedT
 	if not localFileExists then
 		local document_file = utils.create_file(filePath)
 		utils.write_file(document_file, document.content)
-		return document.lastModified, get_last_modified_date(document_file:gsub(" ", "\\ "))
+		return document.lastModified, utils.get_last_modified_date_of_file(document_file:gsub(" ", "\\ "))
 	else
-		local localFileLastModifiedData = get_last_modified_date(filePath:gsub(" ", "\\ "))
+		local localFileLastModifiedDate = utils.get_last_modified_date_of_file(filePath:gsub(" ", "\\ "))
 		local localModified = true
 		local remoteModified = true
-		if localFileLastModifiedData == lastSyncedTable[document.id] then
+		if localFileLastModifiedDate == lastSyncedTable[document.id] then
 			localModified = false
 		end
 		if document.lastModified == lastRemoteModifiedTable[document.id] then
 			remoteModified = false
 		end
-		local document_file = utils.create_file(path .. "/" .. document.title .. ".md")
-		local lastModified = get_last_modified_date(document_file:gsub(" ", "\\ "))
 		-- check if local file was modified and remote file was modified. If yes, save a second copy of the file
 		if localModified and remoteModified then
 			local document_file_remote = utils.create_file(path .. "/" .. document.title .. "_remote.md")
 			utils.write_file(document_file_remote, document.content)
-			return document.lastModified, lastModified
+			return document.lastModified, localFileLastModifiedDate
 		-- If only remote file was modified, update the local file
 		elseif remoteModified then
-			document_file = utils.create_file(path .. "/" .. document.title .. ".md")
+			local document_file = utils.create_file(path .. "/" .. document.title .. ".md")
 			utils.write_file(document_file, document.content)
-			lastModified = get_last_modified_date(document_file:gsub(" ", "\\ "))
+			local lastModified = utils.get_last_modified_date_of_file(document_file:gsub(" ", "\\ "))
 			return document.lastModified, lastModified
 		-- If only local file was modified, do save document post request
 		elseif localModified then
-			document.content = utils.read_file(document_file)
+			document.content = utils.read_file(filePath)
 			document.recreateIndex = false
 			local body = {}
 			body.document = document
-			postDocument(access_token, api_url, region, utils.table_to_json(body))
-			return document.lastModified, lastModified
+			http.postDocument(access_token, api_url, region, body)
+			return document.lastModified, localFileLastModifiedDate
 		else
-			return document.lastModified, lastModified
+			return document.lastModified, localFileLastModifiedDate
 		end
 	end
 end
 
-local function create_document_space(
+M.create_document_space = function(
 	documentId,
 	documentPath,
 	access_token,
@@ -145,18 +60,11 @@ local function create_document_space(
 )
 	local path = utils.get_workspace_path() .. "/" .. documentPath
 	utils.create_directory_if_not_exists(path)
-	return saveDocument(
-		getDocument(access_token, documentId, apiUrl, region),
-		path,
-		lastRemoteModifiedTable,
-		lastSyncedTable,
-		access_token,
-		apiUrl,
-		region
-	)
+	local remoteDocument = http.getDocument(access_token, documentId, apiUrl, region)
+	return M.saveDocument(remoteDocument, path, lastRemoteModifiedTable, lastSyncedTable, access_token, apiUrl, region)
 end
 
-local function process_document(
+M.process_document = function(
 	document,
 	parent_name,
 	access_token,
@@ -166,7 +74,7 @@ local function process_document(
 	lastSyncedTable
 )
 	local document_name = parent_name and (parent_name .. "/" .. document.name) or document.name
-	lastRemoteModifiedTable[document.id], lastSyncedTable[document.id] = create_document_space(
+	lastRemoteModifiedTable[document.id], lastSyncedTable[document.id] = M.create_document_space(
 		document.id,
 		document_name,
 		access_token,
@@ -178,7 +86,7 @@ local function process_document(
 
 	if document.children and type(document.children) == "table" then
 		for _, child_document in ipairs(document.children) do
-			process_document(
+			M.process_document(
 				child_document,
 				document_name,
 				access_token,
@@ -192,43 +100,39 @@ local function process_document(
 end
 
 M.sync = function()
-	local id_token, access_token, refresh_token, clientId, api_url, domain, region = login.get_tokens()
+	local id_token, access_token, refresh_token, clientId, api_url, domain, region = tokens.get_tokens()
 	print("Installing RocketNotes...")
 
 	local local_document_tree = utils.read_file(utils.get_tree_cache_file())
-	local remote_document_tree = getTree(access_token, api_url, region)
-	local lastRemoteModifiedTable = loadRemoteLastModifiedTable()
-	local lastSyncedTable = loadLastSyncedTable()
+	local remote_document_tree = http.getTree(access_token, api_url, region)
+	local lastRemoteModifiedTable = utils.loadRemoteLastModifiedTable()
+	local lastSyncedTable = utils.loadLastSyncedTable()
 
 	local start_index, end_index = string.find(remote_document_tree, "Unauthorized")
 	if start_index then
-		print("unauthorized")
-		login.refresh_token()
-		id_token, access_token = login.get_tokens()
-		remote_document_tree = getTree(access_token, api_url, region)
+		tokens.refresh_token()
+		id_token, access_token = tokens.get_tokens()
+		remote_document_tree = http.getTree(access_token, api_url, region)
 	end
 
 	local remote_document_tree_table = vim.fn.json_decode(remote_document_tree)
 	if type(remote_document_tree_table.documents) == "table" then
 		for _, document in ipairs(remote_document_tree_table.documents) do
-			process_document(document, nil, access_token, api_url, region, lastRemoteModifiedTable, lastSyncedTable)
+			M.process_document(document, nil, access_token, api_url, region, lastRemoteModifiedTable, lastSyncedTable)
 		end
 	else
 		print("data.documents is not a table")
 	end
 
 	---------------------------------------------
-	-- TODO upload newly local created documents
+	-- TODO upload newly local created documents and update remote document tree
 	if local_document_tree then
-		local local_document_tree_table = vim.fn.json_decode(local_document_tree)
-		local local_documents = utils.createNodeMap(utils.flattenDocumentTree(local_document_tree_table.documents))
 		local remote_documents = utils.createNodeMap(utils.flattenDocumentTree(remote_document_tree_table.documents))
 		local local_document_paths = utils.getAllFiles(utils.get_workspace_path())
 		-- This is needed to keep track of newly created documents in local workspace that have been uploaded already
 		-- during iteration of local documents. Once a newly created document with a parent is found, the whole subtree is synced
 		local created_documents = {}
 		for _, document_path in ipairs(local_document_paths) do
-			-- print(document_path)
 			local parent_folder, file_name = utils.getFileNameAndParentDir(document_path)
 			if
 				not remote_documents[file_name]
@@ -240,14 +144,15 @@ M.sync = function()
 					-- TODO update local tree and upload document
 					-- print("TODO update local tree and upload document " .. file)
 				end)
+				created_documents[file_name] = true
 			end
 		end
 	end
 	---------------------------------------------
 
 	utils.saveFile(utils.get_tree_cache_file(), remote_document_tree)
-	saveRemoteLastModifiedTable(lastRemoteModifiedTable)
-	saveLastSyncedTable(lastSyncedTable)
+	utils.saveRemoteLastModifiedTable(lastRemoteModifiedTable)
+	utils.saveLastSyncedTable(lastSyncedTable)
 end
 
 return M

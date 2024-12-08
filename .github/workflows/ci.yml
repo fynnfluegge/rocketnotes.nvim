@@ -16,11 +16,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Copy Source
-        run: cp -r ./lua/ ./src/
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq luarocks
+
+      - name: Verify jq installation
+        run: jq --version
+
+      - name: Install Busted
+        run: luarocks install busted --local
+
+      - name: Create src directory and copy source files
+        run: |
+          mkdir -p src
+          cp -r lua src/
+          cp -r tests src/
 
       - name: List src directory contents
         run: ls -R ./src/
 
-      - name: Lua Busted
-        uses: lunarmodules/busted@v2.2.0
+      - name: Run tests with Lua Busted
+        run: LUA_PATH="./src/lua/?.lua;;" ~/.luarocks/bin/busted ./src
