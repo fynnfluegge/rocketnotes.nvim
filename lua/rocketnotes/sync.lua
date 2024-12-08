@@ -49,7 +49,7 @@ M.saveDocument = function(document, path, lastRemoteModifiedTable, lastSyncedTab
 	end
 end
 
-local function create_document_space(
+M.create_document_space = function(
 	documentId,
 	documentPath,
 	access_token,
@@ -71,7 +71,7 @@ local function create_document_space(
 	)
 end
 
-local function process_document(
+M.process_document = function(
 	document,
 	parent_name,
 	access_token,
@@ -117,7 +117,6 @@ M.sync = function()
 
 	local start_index, end_index = string.find(remote_document_tree, "Unauthorized")
 	if start_index then
-		print("unauthorized")
 		tokens.refresh_token()
 		id_token, access_token = tokens.get_tokens()
 		remote_document_tree = http.getTree(access_token, api_url, region)
@@ -126,25 +125,23 @@ M.sync = function()
 	local remote_document_tree_table = vim.fn.json_decode(remote_document_tree)
 	if type(remote_document_tree_table.documents) == "table" then
 		for _, document in ipairs(remote_document_tree_table.documents) do
-			process_document(document, nil, access_token, api_url, region, lastRemoteModifiedTable, lastSyncedTable)
+			M.process_document(document, nil, access_token, api_url, region, lastRemoteModifiedTable, lastSyncedTable)
 		end
 	else
 		print("data.documents is not a table")
 	end
 
 	---------------------------------------------
-	-- TODO upload newly local created documents
+	-- TODO upload newly local created documents and update remote document tree
 	if local_document_tree then
-		local local_document_tree_table = vim.fn.json_decode(local_document_tree)
-		local local_documents = utils.createNodeMap(utils.flattenDocumentTree(local_document_tree_table.documents))
 		local remote_documents = utils.createNodeMap(utils.flattenDocumentTree(remote_document_tree_table.documents))
 		local local_document_paths = utils.getAllFiles(utils.get_workspace_path())
 		-- This is needed to keep track of newly created documents in local workspace that have been uploaded already
 		-- during iteration of local documents. Once a newly created document with a parent is found, the whole subtree is synced
 		local created_documents = {}
 		for _, document_path in ipairs(local_document_paths) do
-			-- print(document_path)
 			local parent_folder, file_name = utils.getFileNameAndParentDir(document_path)
+			print(parent_folder, file_name)
 			if
 				not remote_documents[file_name]
 				and (remote_documents[parent_folder] or parent_folder == "root")
@@ -155,6 +152,7 @@ M.sync = function()
 					-- TODO update local tree and upload document
 					-- print("TODO update local tree and upload document " .. file)
 				end)
+				created_documents[file_name] = true
 			end
 		end
 	end
