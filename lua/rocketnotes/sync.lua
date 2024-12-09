@@ -41,7 +41,7 @@ M.saveDocument = function(document, path, lastRemoteModifiedTable, lastSyncedTab
 			document.recreateIndex = false
 			local body = {}
 			body.document = document
-			http.postDocument(access_token, api_url, region, body)
+			http.postDocument(access_token, api_url, body)
 			return document.lastModified, localFileLastModifiedDate
 		else
 			return document.lastModified, localFileLastModifiedDate
@@ -60,7 +60,7 @@ M.create_document_space = function(
 )
 	local path = utils.get_workspace_path() .. "/" .. documentPath
 	utils.create_directory_if_not_exists(path)
-	local remoteDocument = http.getDocument(access_token, documentId, apiUrl, region)
+	local remoteDocument = http.getDocument(access_token, documentId, apiUrl)
 	return M.saveDocument(remoteDocument, path, lastRemoteModifiedTable, lastSyncedTable, access_token, apiUrl, region)
 end
 
@@ -112,7 +112,7 @@ M.sync = function()
 	if start_index then
 		tokens.refresh_token()
 		id_token, access_token = tokens.get_tokens()
-		remote_document_tree = http.getTree(access_token, api_url, region)
+		remote_document_tree = http.getTree(access_token, api_url)
 	end
 
 	local remote_document_tree_table = vim.fn.json_decode(remote_document_tree)

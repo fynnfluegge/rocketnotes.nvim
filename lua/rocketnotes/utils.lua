@@ -271,4 +271,11 @@ M.table_to_json = function(tbl)
 	return table.concat(result)
 end
 
+M.decode_base64 = function(input)
+	local handle = io.popen('echo "' .. input .. '" | base64 --decode')
+	local result = handle:read("*a")
+	handle:close()
+	return result
+end
+
 return M

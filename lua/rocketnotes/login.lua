@@ -1,4 +1,5 @@
 local tokens = require("rocketnotes.tokens")
+local utils = require("rocketnotes.utils")
 
 ---@class LoginModule
 local M = {}
@@ -6,15 +7,19 @@ local M = {}
 M.login = function()
 	local id_token, access_token, refresh_token, clientId, api_url, domain, region, username, password =
 		tokens.get_tokens()
-	local domain_input = vim.fn.input(domain and string.format("Enter domain (%s): ", domain) or "Enter domain: ")
-	domain = domain_input ~= "" and domain_input or domain
-	local apiUrl_input = vim.fn.input(api_url and string.format("Enter API URL (%s): ", api_url) or "Enter API URL: ")
-	local apiUrl = apiUrl_input ~= "" and apiUrl_input or api_url
-	local region_input = vim.fn.input(region and string.format("Enter region (%s): ", region) or "Enter region: ")
-	region = region_input ~= "" and region_input or region
-	local clientId_input =
-		vim.fn.input(clientId and string.format("Enter client ID (%s): ", clientId) or "Enter client ID: ")
-	clientId = clientId_input ~= "" and clientId_input or clientId
+
+	local inputToken = vim.fn.input(
+		domain and region and api_url and clientId and "Enter config token (%s, %s, %s, %s): " or "Enter config token: "
+	)
+
+	if inputToken ~= "" then
+		local decoded_token = vim.fn.json_decode(utils.decode_base64(inputToken))
+		domain = decoded_token.domain
+		region = decoded_token.region
+		api_url = decoded_token.apiUrl
+		clientId = decoded_token.clientId
+	end
+
 	local username_input =
 		vim.fn.input(username and string.format("Enter your username (%s): ", username) or "Enter your username: ")
 	username = username_input ~= "" and username_input or username
