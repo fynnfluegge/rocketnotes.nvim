@@ -3,6 +3,7 @@ local tokens = require("rocketnotes.tokens")
 local busted = require("busted")
 local assert = require("luassert")
 local mock = require("luassert.mock")
+local json = require("dkjson")
 
 local response_file_path = "/tmp/cognito_login_response.json"
 
@@ -11,6 +12,8 @@ describe("LoginModule", function()
 	local original_vim_fn_input
 	local original_vim_fn_inputsecret
 	local tokens_spy
+	local base64_token =
+		"ewogICAgImNsaWVudElkIjogImNsaWVudF9pZF92YWx1ZSIsCiAgICAiYXBpVXJsIjogImFwaV91cmxfdmFsdWUiLAogICAgImRvbWFpbiI6ICJkb21haW5fdmFsdWUiLAogICAgInJlZ2lvbiI6ICJyZWdpb25fdmFsdWUiCn0K"
 
 	before_each(function()
 		original_os_execute = os.execute
@@ -21,19 +24,36 @@ describe("LoginModule", function()
 		_G.vim = {
 			fn = {
 				input = function(prompt)
-					return "mock_input"
+					return base64_token
+				end,
+			},
+		}
+
+		_G.vim = {
+			fn = {
+				json_decode = function(content)
+					local decoded, pos, err = json.decode(content)
+					if err then
+						error("Invalid JSON: " .. err)
+					end
+					return decoded
 				end,
 			},
 		}
 
 		original_vim_fn_input = vim.fn.input
 		vim.fn.input = function(prompt)
-			return "mock_input"
+			return base64_token
 		end
 
 		original_vim_fn_inputsecret = vim.fn.inputsecret
 		vim.fn.inputsecret = function(prompt)
 			return "mock_secret"
+		end
+
+		original_vim_fn_decode = vim.fn.json_decode
+		vim.fn.json_decode = function(content)
+			return json.decode(content)
 		end
 
 		local tokens_mock = mock(tokens, true)
@@ -57,17 +77,31 @@ describe("LoginModule", function()
 		os.execute = original_os_execute
 		vim.fn.input = original_vim_fn_input
 		vim.fn.inputsecret = original_vim_fn_inputsecret
+		vim.fn.decode = original_vim_fn_decode
 		os.remove(response_file_path)
 		tokens_spy.save_tokens:clear()
 	end)
 
 	it("should login successfully", function()
 		local file = io.open(response_file_path, "w")
-		file:write('{"id_token": "new_id_token", "access_token": "new_access_token" }')
+		file:write(
+			'{"AuthenticationResult": {"IdToken": "new_id_token", "AccessToken": "new_access_token", "RefreshToken": "new_refresh_token"}}'
+		)
 		file:close()
 
 		login.login()
 		assert.spy(tokens_spy.save_tokens).was_called()
+		assert.spy(tokens_spy.save_tokens).was_called_with(
+			"new_id_token",
+			"new_access_token",
+			"new_refresh_token",
+			"client_id_value",
+			"api_url_value",
+			"domain_value",
+			"region_value",
+			base64_token,
+			"mock_secret"
+		)
 	end)
 
 	it("should handle incorrect username or password", function()

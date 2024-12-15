@@ -5,7 +5,7 @@ local http = require("rocketnotes.http")
 ---@class InstallModule
 local M = {}
 
-M.saveDocument = function(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url, region)
+M.saveDocument = function(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url)
 	document = vim.fn.json_decode(document)
 	local filePath = path .. "/" .. document.title .. ".md"
 	local localFileExists = utils.file_exists(filePath)
@@ -54,32 +54,22 @@ M.create_document_space = function(
 	documentPath,
 	access_token,
 	apiUrl,
-	region,
 	lastRemoteModifiedTable,
 	lastSyncedTable
 )
 	local path = utils.get_workspace_path() .. "/" .. documentPath
 	utils.create_directory_if_not_exists(path)
 	local remoteDocument = http.getDocument(access_token, documentId, apiUrl)
-	return M.saveDocument(remoteDocument, path, lastRemoteModifiedTable, lastSyncedTable, access_token, apiUrl, region)
+	return M.saveDocument(remoteDocument, path, lastRemoteModifiedTable, lastSyncedTable, access_token, apiUrl)
 end
 
-M.process_document = function(
-	document,
-	parent_name,
-	access_token,
-	api_url,
-	region,
-	lastRemoteModifiedTable,
-	lastSyncedTable
-)
+M.process_document = function(document, parent_name, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
 	local document_name = parent_name and (parent_name .. "/" .. document.name) or document.name
 	lastRemoteModifiedTable[document.id], lastSyncedTable[document.id] = M.create_document_space(
 		document.id,
 		document_name,
 		access_token,
 		api_url,
-		region,
 		lastRemoteModifiedTable,
 		lastSyncedTable
 	)
@@ -91,7 +81,6 @@ M.process_document = function(
 				document_name,
 				access_token,
 				api_url,
-				region,
 				lastRemoteModifiedTable,
 				lastSyncedTable
 			)
@@ -104,7 +93,7 @@ M.sync = function()
 	print("Installing RocketNotes...")
 
 	local local_document_tree = utils.read_file(utils.get_tree_cache_file())
-	local remote_document_tree = http.getTree(access_token, api_url, region)
+	local remote_document_tree = http.getTree(access_token, api_url)
 	local lastRemoteModifiedTable = utils.loadRemoteLastModifiedTable()
 	local lastSyncedTable = utils.loadLastSyncedTable()
 
@@ -118,7 +107,7 @@ M.sync = function()
 	local remote_document_tree_table = vim.fn.json_decode(remote_document_tree)
 	if type(remote_document_tree_table.documents) == "table" then
 		for _, document in ipairs(remote_document_tree_table.documents) do
-			M.process_document(document, nil, access_token, api_url, region, lastRemoteModifiedTable, lastSyncedTable)
+			M.process_document(document, nil, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
 		end
 	else
 		print("data.documents is not a table")

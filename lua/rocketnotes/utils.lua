@@ -240,6 +240,10 @@ local function escape_str(s)
 	return s:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\n", "\\n"):gsub("\r", "\\r"):gsub("\t", "\\t")
 end
 
+M.trim = function(s)
+	return (s:gsub("^%s*(.-)%s*$", "%1"))
+end
+
 -- Function to convert a Lua table to JSON
 M.table_to_json = function(tbl)
 	local result = {}

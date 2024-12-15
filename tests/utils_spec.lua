@@ -122,3 +122,23 @@ describe("flattenDocumentTree", function()
 		assert.are.same(expected_flat_list, flat_list)
 	end)
 end)
+
+describe("utils.decode_base64", function()
+	it("should decode base64 encoded strings correctly", function()
+		local encoded = "SGVsbG8gd29ybGQ="
+		local decoded = utils.decode_base64(encoded)
+		assert.are.equal("Hello world", decoded)
+	end)
+
+	it("should return an empty string for empty input", function()
+		local encoded = ""
+		local decoded = utils.decode_base64(encoded)
+		assert.are.equal("", decoded)
+	end)
+
+	it("should handle invalid base64 input gracefully", function()
+		local encoded = "invalid_base64"
+		local decoded = utils.decode_base64(encoded)
+		assert.are_not.equal(nil, decoded)
+	end)
+end)
