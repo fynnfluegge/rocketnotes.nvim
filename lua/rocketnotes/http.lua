@@ -3,8 +3,8 @@ local utils = require("rocketnotes.utils")
 ---@class InstallModule
 local M = {}
 
-M.getTree = function(access_token, apiUrl)
-	local decoded_token = utils.decodeToken(access_token)
+M.get_tree = function(access_token, apiUrl)
+	local decoded_token = utils.decode_token(access_token)
 	local user_id = decoded_token.username
 
 	local command =
@@ -16,7 +16,7 @@ M.getTree = function(access_token, apiUrl)
 	return result
 end
 
-M.getDocument = function(access_token, documentId, apiUrl)
+M.get_document = function(access_token, documentId, apiUrl)
 	local command =
 		string.format('curl -X GET "%s/document/%s" -H "Authorization: Bearer %s"', apiUrl, documentId, access_token)
 
@@ -26,7 +26,7 @@ M.getDocument = function(access_token, documentId, apiUrl)
 	return result
 end
 
-M.postDocument = function(access_token, apiUrl, body)
+M.post_document = function(access_token, apiUrl, body)
 	local command = string.format(
 		'curl -X POST "%s/saveDocument" -H "Authorization: Bearer %s" -H "Content-Type: application/json" -d \'%s\'',
 		apiUrl,

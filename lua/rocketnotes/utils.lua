@@ -85,7 +85,7 @@ M.get_workspace_path = function()
 	end
 end
 
-M.loadRemoteLastModifiedTable = function()
+M.load_remote_last_modified_table = function()
 	local lastModifiedTableFile = M.get_config_path() .. "/lastRemoteModified.json"
 	if M.file_exists(lastModifiedTableFile) then
 		return vim.fn.json_decode(M.read_file(lastModifiedTableFile))
@@ -93,7 +93,7 @@ M.loadRemoteLastModifiedTable = function()
 	return {}
 end
 
-M.loadLastSyncedTable = function()
+M.load_last_synced_table = function()
 	local lastModifiedTableFile = M.get_config_path() .. "/lastSynced.json"
 	if M.file_exists(lastModifiedTableFile) then
 		return vim.fn.json_decode(M.read_file(lastModifiedTableFile))
@@ -101,17 +101,17 @@ M.loadLastSyncedTable = function()
 	return {}
 end
 
-M.saveRemoteLastModifiedTable = function(lastRemoteModifiedTable)
+M.save_remote_last_modified_table = function(lastRemoteModifiedTable)
 	local lastModifiedTableFile = M.create_file(M.get_config_path() .. "/lastRemoteModified.json")
 	M.write_file(lastModifiedTableFile, vim.fn.json_encode(lastRemoteModifiedTable))
 end
 
-M.saveLastSyncedTable = function(lastModifiedTable)
+M.save_last_synced_table = function(lastModifiedTable)
 	local lastModifiedTableFile = M.create_file(M.get_config_path() .. "/lastSynced.json")
 	M.write_file(lastModifiedTableFile, vim.fn.json_encode(lastModifiedTable))
 end
 
-M.decodeToken = function(token)
+M.decode_token = function(token)
 	local jq_command =
 		string.format("echo '%s' | jq -R 'split(\".\") | select(length > 0) | .[1] | @base64d | fromjson'", token)
 
@@ -126,7 +126,7 @@ M.decodeToken = function(token)
 	return decoded_token
 end
 
-M.saveFile = function(file, content)
+M.save_file = function(file, content)
 	local file = io.open(file, "w")
 	if file then
 		file:write(content)
@@ -136,7 +136,7 @@ M.saveFile = function(file, content)
 	end
 end
 
-M.flattenDocumentTree = function(t)
+M.flatten_document_tree = function(t)
 	local flat_list = {}
 
 	local function flatten(node)
@@ -160,7 +160,7 @@ M.flattenDocumentTree = function(t)
 	return flat_list
 end
 
-M.createNodeMap = function(flat_list)
+M.create_node_map = function(flat_list)
 	local node_map = {}
 
 	for _, node in ipairs(flat_list) do
@@ -180,7 +180,7 @@ M.get_full_document_path = function(parent, name, tree)
 	return path
 end
 
-M.traverseDocumentTree = function(t, callback)
+M.traverse_document_tree = function(t, callback)
 	local function traverse(node)
 		callback(node)
 		if node.children then
@@ -202,7 +202,7 @@ M.get_last_modified_date_of_file = function(file_path)
 	return tonumber(result)
 end
 
-M.traverseDirectory = function(dir, callback)
+M.traverse_directory = function(dir, callback)
 	local p = io.popen('find "' .. dir .. '" -type d')
 	for directory in p:lines() do
 		callback(directory)
@@ -210,7 +210,7 @@ M.traverseDirectory = function(dir, callback)
 	p:close()
 end
 
-M.getAllFiles = function(dir)
+M.get_all_files = function(dir)
 	local files = {}
 	local p = io.popen('find "' .. dir .. '" -type f')
 	for file in p:lines() do
@@ -220,7 +220,7 @@ M.getAllFiles = function(dir)
 	return files
 end
 
-M.getFileNameAndParentDir = function(filePath)
+M.get_file_name_and_parent_dir = function(filePath)
 	local parentDir, fileName = filePath:match("(.*/)([^/]+)$")
 	local fileNameWithoutExtension = fileName:gsub("%.[^%.]+$", "")
 	parentDir = parentDir:gsub("^/", ""):gsub("/$", "")
@@ -238,10 +238,6 @@ end
 -- Function to escape special characters in strings
 local function escape_str(s)
 	return s:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\n", "\\n"):gsub("\r", "\\r"):gsub("\t", "\\t")
-end
-
-M.trim = function(s)
-	return (s:gsub("^%s*(.-)%s*$", "%1"))
 end
 
 -- Function to convert a Lua table to JSON
