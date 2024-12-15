@@ -1,7 +1,6 @@
 local login = require("rocketnotes.login")
 local tokens = require("rocketnotes.tokens")
 local busted = require("busted")
-local assert = require("luassert")
 local mock = require("luassert.mock")
 local json = require("dkjson")
 
@@ -73,14 +72,14 @@ describe("login", function()
 
 	it("should login successfully", function()
 		login.login()
-		assert
+		busted.assert
 			.spy(tokens_spy.update_tokens_from_username_and_password)
 			.was_called_with("client_id_value", "region_value", "api_url_value", "domain_value", base64_token, "mock_secret")
 	end)
 
 	it("should handle incorrect username or password", function()
 		login.login()
-		assert
+		busted.assert
 			.spy(tokens_spy.update_tokens_from_username_and_password)
 			.was_called_with("client_id_value", "region_value", "api_url_value", "domain_value", base64_token, "mock_secret")
 	end)

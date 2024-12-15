@@ -72,8 +72,8 @@ describe("rocketnotes.sync", function()
 			local date1, date2 =
 				sync.save_document(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url)
 
-			assert.spy(utils_spy.create_file).was.called_with(path .. "/" .. file_name)
-			assert.spy(utils_spy.write_file).was.called_with(path .. "/" .. file_name, documentContent)
+			busted.assert.spy(utils_spy.create_file).was.called_with(path .. "/" .. file_name)
+			busted.assert.spy(utils_spy.write_file).was.called_with(path .. "/" .. file_name, documentContent)
 			assert.are.equal(date1, lastRemoteModified)
 			assert.are.equal(date2, lastLocalModified)
 			busted.assert.spy(http_spy).was_not_called()
@@ -87,9 +87,9 @@ describe("rocketnotes.sync", function()
 
 			assert.are.equal(date1, lastRemoteModified)
 			assert.are.equal(date2, lastLocalModified)
-			assert.spy(utils_spy.create_file).was.not_called()
-			assert.spy(utils_spy.write_file).was.not_called_with()
-			assert.spy(utils_spy.read_file).was.called_with(path .. "/" .. file_name)
+			busted.assert.spy(utils_spy.create_file).was.not_called()
+			busted.assert.spy(utils_spy.write_file).was.not_called_with()
+			busted.assert.spy(utils_spy.read_file).was.called_with(path .. "/" .. file_name)
 			busted.assert.spy(http_spy).was_called_with(
 				access_token,
 				api_url,
@@ -122,8 +122,8 @@ describe("rocketnotes.sync", function()
 
 			assert.are.equal(date1, lastRemoteModified)
 			assert.are.equal(date2, remoteModifiedDocument)
-			assert.spy(utils_spy.create_file).was.called_with(path .. "/" .. file_name)
-			assert.spy(utils_spy.write_file).was.called_with(path .. "/" .. file_name, documentContent)
+			busted.assert.spy(utils_spy.create_file).was.called_with(path .. "/" .. file_name)
+			busted.assert.spy(utils_spy.write_file).was.called_with(path .. "/" .. file_name, documentContent)
 			busted.assert.spy(http_spy).was_not_called()
 		end)
 
@@ -145,8 +145,8 @@ describe("rocketnotes.sync", function()
 
 				assert.are.equal(date1, lastRemoteModified)
 				assert.are.equal(date2, lastLocalModified)
-				assert.spy(utils_spy.create_file).was.called_with(path .. "/" .. documentTitle .. "_remote.md")
-				assert.spy(utils_spy.write_file).was.called_with(path .. "/" .. file_name, documentContent)
+				busted.assert.spy(utils_spy.create_file).was.called_with(path .. "/" .. documentTitle .. "_remote.md")
+				busted.assert.spy(utils_spy.write_file).was.called_with(path .. "/" .. file_name, documentContent)
 				busted.assert.spy(http_spy).was_not_called()
 			end
 		)
@@ -160,8 +160,8 @@ describe("rocketnotes.sync", function()
 
 			assert.are.equal(date1, lastRemoteModified)
 			assert.are.equal(date2, lastSynced)
-			assert.spy(utils_spy.create_file).was.not_called()
-			assert.spy(utils_spy.write_file).was.not_called()
+			busted.assert.spy(utils_spy.create_file).was.not_called()
+			busted.assert.spy(utils_spy.write_file).was.not_called()
 			busted.assert.spy(http_spy).was_not_called()
 		end)
 	end)
@@ -240,6 +240,9 @@ describe("rocketnotes.sync", function()
 			utils_spy.get_all_files:clear()
 			utils_spy.get_file_name_and_parent_dir:clear()
 			utils_spy.traverse_directory:clear()
+			utils_spy.save_file:clear()
+			utils_spy.save_remote_last_modified_table:clear()
+			utils_spy.save_last_synced_table:clear()
 		end)
 
 		it("should sync documents correctly", function()
@@ -265,6 +268,10 @@ describe("rocketnotes.sync", function()
 					},
 				},
 			}, nil, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
+			busted.assert.spy(utils_spy.get_all_files).was_called_with("/path/to/workspace")
+			busted.assert.spy(utils_spy.save_file).was_called_with("/path/to/cache/file", remote_document_tree)
+			busted.assert.spy(utils_spy.save_remote_last_modified_table).was_called_with(lastRemoteModifiedTable)
+			busted.assert.spy(utils_spy.save_last_synced_table).was_called_with(lastSyncedTable)
 		end)
 
 		it("should refresh token if unauthorized", function()

@@ -139,6 +139,7 @@ describe("refresh_token", function()
 	local original_tokens_get_tokens
 	local original_tokens_save_tokens
 	local original_update_tokens_from_username_and_password
+	local tokens_spy
 
 	before_each(function()
 		local file = io.open(token_file_path, "w")
@@ -180,12 +181,15 @@ describe("refresh_token", function()
 				end,
 			},
 		}
+
+		tokens_spy = busted.mock(tokens)
 	end)
 
 	after_each(function()
 		_G.vim = nil
 		os.remove(token_file_path)
 		os.remove(response_file_path)
+		tokens_spy.save_tokens:clear()
 		tokens.get_tokens = original_tokens_get_tokens
 		tokens.save_tokens = original_tokens_save_tokens
 		tokens.update_tokens_from_username_and_password = original_update_tokens_from_username_and_password
@@ -196,11 +200,9 @@ describe("refresh_token", function()
 		file:write('{"id_token": "new_id_token", "access_token": "new_access_token" }')
 		file:close()
 
-		local tokens_spy = busted.mock(tokens)
-
 		tokens.refresh_token()
 
-		assert.spy(tokens_spy.save_tokens).was_called_with(
+		busted.assert.spy(tokens_spy.save_tokens).was_called_with(
 			"new_id_token",
 			"new_access_token",
 			"refresh_token",
@@ -211,7 +213,6 @@ describe("refresh_token", function()
 			"username",
 			"password"
 		)
-		tokens_spy.save_tokens:clear()
 	end)
 
 	it("should handle refresh token expiration", function()
@@ -219,11 +220,9 @@ describe("refresh_token", function()
 		file:write('{"error": "NotAuthorizedException"}')
 		file:close()
 
-		local tokens_spy = busted.mock(tokens)
-
 		tokens.refresh_token()
 
-		assert
+		busted.assert
 			.spy(tokens_spy.update_tokens_from_username_and_password)
 			.was_called_with("client_id", "apiUrl", "domain", "region", "username", "password")
 	end)
@@ -269,7 +268,7 @@ describe("update_tokens_from_username_and_password", function()
 			base64_token,
 			"password"
 		)
-		assert.spy(tokens_spy.save_tokens).was_called_with(
+		busted.assert.spy(tokens_spy.save_tokens).was_called_with(
 			"new_id_token",
 			"new_access_token",
 			"new_refresh_token",
@@ -295,6 +294,6 @@ describe("update_tokens_from_username_and_password", function()
 			base64_token,
 			"password"
 		)
-		assert.spy(tokens_spy.save_tokens).was_not_called()
+		busted.assert.spy(tokens_spy.save_tokens).was_not_called()
 	end)
 end)
