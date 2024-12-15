@@ -279,6 +279,7 @@ describe("rocketnotes.sync", function()
 			sync.sync()
 			busted.assert.spy(tokens_spy.get_tokens).was_called()
 			busted.assert.spy(tokens_spy.refresh_token).was_called()
+			-- was note called since mock can only be defined once and get_tree is called twice
 			busted.assert.spy(process_document_spy).was_not_called()
 		end)
 
