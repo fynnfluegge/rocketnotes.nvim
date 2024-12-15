@@ -5,7 +5,7 @@ local http = require("rocketnotes.http")
 ---@class InstallModule
 local M = {}
 
-M.saveDocument = function(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url)
+M.save_document = function(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url)
 	document = vim.fn.json_decode(document)
 	local filePath = path .. "/" .. document.title .. ".md"
 	local localFileExists = utils.file_exists(filePath)
@@ -60,7 +60,7 @@ M.create_document_space = function(
 	local path = utils.get_workspace_path() .. "/" .. documentPath
 	utils.create_directory_if_not_exists(path)
 	local remoteDocument = http.getDocument(access_token, documentId, apiUrl)
-	return M.saveDocument(remoteDocument, path, lastRemoteModifiedTable, lastSyncedTable, access_token, apiUrl)
+	return M.save_document(remoteDocument, path, lastRemoteModifiedTable, lastSyncedTable, access_token, apiUrl)
 end
 
 M.process_document = function(document, parent_name, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
@@ -93,8 +93,8 @@ M.sync = function()
 	print("Installing RocketNotes...")
 
 	local local_document_tree = utils.read_file(utils.get_tree_cache_file())
-	local lastRemoteModifiedTable = utils.loadRemoteLastModifiedTable()
-	local lastSyncedTable = utils.loadLastSyncedTable()
+	local lastRemoteModifiedTable = utils.load_remote_last_modified_table()
+	local lastSyncedTable = utils.load_last_synced_table()
 	local remote_document_tree = http.getTree(access_token, api_url)
 
 	local start_index, end_index = string.find(remote_document_tree, "Unauthorized")
@@ -116,20 +116,21 @@ M.sync = function()
 	---------------------------------------------
 	-- TODO upload newly local created documents and update remote document tree
 	if local_document_tree then
-		local remote_documents = utils.createNodeMap(utils.flattenDocumentTree(remote_document_tree_table.documents))
-		local local_document_paths = utils.getAllFiles(utils.get_workspace_path())
+		local remote_documents =
+			utils.create_node_map(utils.flatten_document_tree(remote_document_tree_table.documents))
+		local local_document_paths = utils.get_all_files(utils.get_workspace_path())
 		-- This is needed to keep track of newly created documents in local workspace that have been uploaded already
 		-- during iteration of local documents. Once a newly created document with a parent is found, the whole subtree is synced
 		local created_documents = {}
 		for _, document_path in ipairs(local_document_paths) do
-			local parent_folder, file_name = utils.getFileNameAndParentDir(document_path)
+			local parent_folder, file_name = utils.get_file_name_and_parent_dir(document_path)
 			if
 				not remote_documents[file_name]
 				and (remote_documents[parent_folder] or parent_folder == "root")
 				and not created_documents[file_name]
 			then
 				-- print("create document " .. file_name)
-				utils.traverseDirectory(document_path, function(file)
+				utils.traverse_directory(document_path, function(file)
 					-- TODO update local tree and upload document
 					-- print("TODO update local tree and upload document " .. file)
 				end)
@@ -139,9 +140,9 @@ M.sync = function()
 	end
 	---------------------------------------------
 
-	utils.saveFile(utils.get_tree_cache_file(), remote_document_tree)
-	utils.saveRemoteLastModifiedTable(lastRemoteModifiedTable)
-	utils.saveLastSyncedTable(lastSyncedTable)
+	utils.save_file(utils.get_tree_cache_file(), remote_document_tree)
+	utils.save_remote_last_modified_table(lastRemoteModifiedTable)
+	utils.save_last_synced_table(lastSyncedTable)
 end
 
 return M

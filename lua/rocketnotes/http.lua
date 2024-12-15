@@ -4,7 +4,7 @@ local utils = require("rocketnotes.utils")
 local M = {}
 
 M.getTree = function(access_token, apiUrl)
-	local decoded_token = utils.decodeToken(access_token)
+	local decoded_token = utils.decode_token(access_token)
 	local user_id = decoded_token.username
 
 	local command =

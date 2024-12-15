@@ -8,7 +8,7 @@ local assert = require("luassert")
 local busted = require("busted")
 
 describe("rocketnotes.sync", function()
-	describe("saveDocument", function()
+	describe("save_document", function()
 		local file_name = "Test Document.md"
 		local lastRemoteModified = "2023-09-30T12:00:00Z"
 		local documentTitle = "Test Document"
@@ -70,7 +70,7 @@ describe("rocketnotes.sync", function()
 			utils_mock.file_exists.returns(false)
 
 			local date1, date2 =
-				sync.saveDocument(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url)
+				sync.save_document(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url)
 
 			assert.spy(utils_spy.create_file).was.called_with(path .. "/" .. file_name)
 			assert.spy(utils_spy.write_file).was.called_with(path .. "/" .. file_name, documentContent)
@@ -83,7 +83,7 @@ describe("rocketnotes.sync", function()
 			utils_mock.file_exists.returns(true)
 
 			local date1, date2 =
-				sync.saveDocument(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url)
+				sync.save_document(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url)
 
 			assert.are.equal(date1, lastRemoteModified)
 			assert.are.equal(date2, lastLocalModified)
@@ -111,7 +111,7 @@ describe("rocketnotes.sync", function()
 
 			local remoteModifiedDocument = "2023-09-31T12:00:00Z"
 
-			local date1, date2 = sync.saveDocument(
+			local date1, date2 = sync.save_document(
 				document,
 				path,
 				{ doc1 = remoteModifiedDocument },
@@ -134,7 +134,7 @@ describe("rocketnotes.sync", function()
 
 				local remoteModifiedDocument = "2023-09-31T12:00:00Z"
 
-				local date1, date2 = sync.saveDocument(
+				local date1, date2 = sync.save_document(
 					document,
 					path,
 					{ doc1 = remoteModifiedDocument },
@@ -156,7 +156,7 @@ describe("rocketnotes.sync", function()
 			utils_mock.get_last_modified_date_of_file.returns(lastSynced)
 
 			local date1, date2 =
-				sync.saveDocument(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url)
+				sync.save_document(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url)
 
 			assert.are.equal(date1, lastRemoteModified)
 			assert.are.equal(date2, lastSynced)
@@ -204,9 +204,9 @@ describe("rocketnotes.sync", function()
 			utils_mock.get_tree_cache_file.returns("/path/to/cache/file")
 			utils_mock.read_file.returns(local_document_tree)
 			http_mock.getTree.returns(remote_document_tree)
-			utils_mock.loadRemoteLastModifiedTable.returns(lastRemoteModifiedTable)
-			utils_mock.loadLastSyncedTable.returns(lastSyncedTable)
-			utils_mock.getAllFiles.returns({})
+			utils_mock.load_remote_last_modified_table.returns(lastRemoteModifiedTable)
+			utils_mock.load_last_synced_table.returns(lastSyncedTable)
+			utils_mock.get_all_files.returns({})
 
 			tokens_mock.refresh_token.returns()
 			tokens_mock.get_tokens.returns(id_token, access_token, refresh_token, clientId, api_url, domain, region)
@@ -237,9 +237,9 @@ describe("rocketnotes.sync", function()
 			_G.vim = nil
 			tokens_spy.get_tokens:clear()
 			tokens_spy.refresh_token:clear()
-			utils_spy.getAllFiles:clear()
-			utils_spy.getFileNameAndParentDir:clear()
-			utils_spy.traverseDirectory:clear()
+			utils_spy.get_all_files:clear()
+			utils_spy.get_file_name_and_parent_dir:clear()
+			utils_spy.traverse_directory:clear()
 		end)
 
 		it("should sync documents correctly", function()
@@ -276,19 +276,19 @@ describe("rocketnotes.sync", function()
 		end)
 
 		it("should handle newly created local documents", function()
-			utils_mock.getAllFiles.returns({
+			utils_mock.get_all_files.returns({
 				"/path/to/doc1.md",
 				"/path/to/doc1/doc2.md",
 				"/path/to/doc3.md",
 				"/path/to/doc3/doc4.md",
 			})
-			utils_mock.traverseDirectory.returns()
+			utils_mock.traverse_directory.returns()
 			utils_mock.read_file.returns(
 				'{"documents": [ {"id": "doc1", "name": "doc1", "children": [ {"id": "doc2", "name": "doc2"} ]}, {"id": "doc3", "name": "doc3", "children": [ {"id": "doc4", "name": "doc4"}, {"id": "doc5", "name": "doc5"} ]} ]}'
 			)
-			utils_mock.getFileNameAndParentDir.returns("doc4", "doc5")
+			utils_mock.get_file_name_and_parent_dir.returns("doc4", "doc5")
 
-			utils_mock.flattenDocumentTree.returns({
+			utils_mock.flatten_document_tree.returns({
 				{
 					id = "doc1",
 					name = "doc1",
@@ -306,7 +306,7 @@ describe("rocketnotes.sync", function()
 					name = "doc4",
 				},
 			})
-			utils_mock.createNodeMap.returns({
+			utils_mock.create_node_map.returns({
 				doc1 = {
 					id = "doc1",
 					name = "doc1",
@@ -338,9 +338,9 @@ describe("rocketnotes.sync", function()
 					},
 				},
 			}, nil, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
-			busted.assert.spy(utils_spy.getAllFiles).was_called_with("/path/to/workspace")
-			busted.assert.spy(utils_spy.getFileNameAndParentDir).was_called_with("/path/to/doc1.md")
-			busted.assert.spy(utils_spy.traverseDirectory).was_called(1)
+			busted.assert.spy(utils_spy.get_all_files).was_called_with("/path/to/workspace")
+			busted.assert.spy(utils_spy.get_file_name_and_parent_dir).was_called_with("/path/to/doc1.md")
+			busted.assert.spy(utils_spy.traverse_directory).was_called(1)
 		end)
 	end)
 
@@ -359,7 +359,7 @@ describe("rocketnotes.sync", function()
 		local http_mock
 		local utils_spy
 		local http_spy
-		local original_saveDocument
+		local original_save_document
 		local save_document_spy
 
 		before_each(function()
@@ -371,15 +371,15 @@ describe("rocketnotes.sync", function()
 			utils_mock.get_workspace_path.returns(workspace_path)
 			utils_mock.create_directory_if_not_exists.returns()
 			http_mock.getDocument.returns(documentContent)
-			original_saveDocument = sync.saveDocument
-			sync.saveDocument = function() end
-			save_document_spy = busted.spy.on(sync, "saveDocument")
+			original_save_document = sync.save_document
+			sync.save_document = function() end
+			save_document_spy = busted.spy.on(sync, "save_document")
 		end)
 
 		after_each(function()
 			utils_spy.get_workspace_path:clear()
 			http_spy.getDocument:clear()
-			sync.saveDocument = original_saveDocument
+			sync.save_document = original_save_document
 			save_document_spy:revert()
 		end)
 
@@ -420,7 +420,6 @@ describe("rocketnotes.sync", function()
 		local parent_name = nil
 		local access_token = "dummy_access_token"
 		local api_url = "https://api.example.com"
-		local region = "us-west-1"
 		local lastRemoteModifiedTable = {}
 		local lastSyncedTable = {}
 

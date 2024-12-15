@@ -7,7 +7,7 @@ local json = require("dkjson")
 
 local response_file_path = "/tmp/cognito_login_response.json"
 
-describe("LoginModule", function()
+describe("login", function()
 	local original_os_execute
 	local original_vim_fn_input
 	local original_vim_fn_inputsecret
