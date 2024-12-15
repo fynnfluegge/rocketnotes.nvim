@@ -41,7 +41,7 @@ M.save_document = function(document, path, lastRemoteModifiedTable, lastSyncedTa
 			document.recreateIndex = false
 			local body = {}
 			body.document = document
-			http.postDocument(access_token, api_url, body)
+			http.post_document(access_token, api_url, body)
 			return document.lastModified, localFileLastModifiedDate
 		else
 			return document.lastModified, localFileLastModifiedDate
@@ -59,7 +59,7 @@ M.create_document_space = function(
 )
 	local path = utils.get_workspace_path() .. "/" .. documentPath
 	utils.create_directory_if_not_exists(path)
-	local remoteDocument = http.getDocument(access_token, documentId, apiUrl)
+	local remoteDocument = http.get_document(access_token, documentId, apiUrl)
 	return M.save_document(remoteDocument, path, lastRemoteModifiedTable, lastSyncedTable, access_token, apiUrl)
 end
 
@@ -95,13 +95,13 @@ M.sync = function()
 	local local_document_tree = utils.read_file(utils.get_tree_cache_file())
 	local lastRemoteModifiedTable = utils.load_remote_last_modified_table()
 	local lastSyncedTable = utils.load_last_synced_table()
-	local remote_document_tree = http.getTree(access_token, api_url)
+	local remote_document_tree = http.get_tree(access_token, api_url)
 
 	local start_index, end_index = string.find(remote_document_tree, "Unauthorized")
 	if start_index then
 		tokens.refresh_token()
 		id_token, access_token = tokens.get_tokens()
-		remote_document_tree = http.getTree(access_token, api_url)
+		remote_document_tree = http.get_tree(access_token, api_url)
 	end
 
 	local remote_document_tree_table = vim.fn.json_decode(remote_document_tree)

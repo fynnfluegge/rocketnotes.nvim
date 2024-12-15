@@ -41,9 +41,9 @@ describe("rocketnotes.sync", function()
 			utils_spy = busted.mock(utils)
 
 			http_mock = mock(http, true)
-			http_mock.postDocument.returns()
+			http_mock.post_document.returns()
 
-			http_spy = busted.spy.on(http, "postDocument")
+			http_spy = busted.spy.on(http, "post_document")
 
 			_G.vim = {
 				fn = {
@@ -203,7 +203,7 @@ describe("rocketnotes.sync", function()
 			utils_mock.get_workspace_path.returns("/path/to/workspace")
 			utils_mock.get_tree_cache_file.returns("/path/to/cache/file")
 			utils_mock.read_file.returns(local_document_tree)
-			http_mock.getTree.returns(remote_document_tree)
+			http_mock.get_tree.returns(remote_document_tree)
 			utils_mock.load_remote_last_modified_table.returns(lastRemoteModifiedTable)
 			utils_mock.load_last_synced_table.returns(lastSyncedTable)
 			utils_mock.get_all_files.returns({})
@@ -275,7 +275,7 @@ describe("rocketnotes.sync", function()
 		end)
 
 		it("should refresh token if unauthorized", function()
-			http.getTree.returns('{ "error": "Unauthorized" }')
+			http_mock.get_tree.returns('{ "error": "Unauthorized" }')
 			sync.sync()
 			busted.assert.spy(tokens_spy.get_tokens).was_called()
 			busted.assert.spy(tokens_spy.refresh_token).was_called()
@@ -377,7 +377,7 @@ describe("rocketnotes.sync", function()
 
 			utils_mock.get_workspace_path.returns(workspace_path)
 			utils_mock.create_directory_if_not_exists.returns()
-			http_mock.getDocument.returns(documentContent)
+			http_mock.get_document.returns(documentContent)
 			original_save_document = sync.save_document
 			sync.save_document = function() end
 			save_document_spy = busted.spy.on(sync, "save_document")
@@ -385,7 +385,7 @@ describe("rocketnotes.sync", function()
 
 		after_each(function()
 			utils_spy.get_workspace_path:clear()
-			http_spy.getDocument:clear()
+			http_spy.get_document:clear()
 			sync.save_document = original_save_document
 			save_document_spy:revert()
 		end)
@@ -402,7 +402,7 @@ describe("rocketnotes.sync", function()
 
 			local expected_path = workspace_path .. "/" .. documentPath
 			busted.assert.spy(utils_spy.create_directory_if_not_exists).was_called_with(expected_path)
-			busted.assert.spy(http_spy.getDocument).was_called_with(access_token, documentId, apiUrl)
+			busted.assert.spy(http_spy.get_document).was_called_with(access_token, documentId, apiUrl)
 			busted.assert
 				.spy(save_document_spy)
 				.was_called_with(documentContent, expected_path, lastRemoteModifiedTable, lastSyncedTable, access_token, apiUrl)
