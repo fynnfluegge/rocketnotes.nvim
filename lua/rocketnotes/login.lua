@@ -62,17 +62,16 @@ M.login = function()
 				access_token = io.popen(string.format("echo '%s' | jq -r .AccessToken", auth_result)):read("*all")
 				refresh_token = io.popen(string.format("echo '%s' | jq -r .RefreshToken", auth_result)):read("*all")
 
-				print("Login successful!")
 				-- print("ID Token:", id_token)
 				-- print("Access Token:", access_token)
 				-- print("Refresh Token:", refresh_token)
 
 				tokens.save_tokens(
-					id_token,
-					access_token,
-					refresh_token,
+					utils.trim(id_token),
+					utils.trim(access_token),
+					utils.trim(refresh_token),
 					clientId,
-					apiUrl,
+					api_url,
 					domain,
 					region,
 					username,
