@@ -57,18 +57,7 @@ describe("LoginModule", function()
 		end
 
 		local tokens_mock = mock(tokens, true)
-		tokens_mock.get_tokens.returns(
-			"id_token",
-			"access_token",
-			"refresh_token",
-			"clientId",
-			"api_url",
-			"domain",
-			"region",
-			"username",
-			"password"
-		)
-		tokens_mock.save_tokens.returns()
+		tokens_mock.update_tokens_from_username_and_password.returns()
 
 		tokens_spy = busted.mock(tokens)
 	end)
@@ -79,37 +68,20 @@ describe("LoginModule", function()
 		vim.fn.inputsecret = original_vim_fn_inputsecret
 		vim.fn.decode = original_vim_fn_decode
 		os.remove(response_file_path)
-		tokens_spy.save_tokens:clear()
+		tokens_spy.update_tokens_from_username_and_password:clear()
 	end)
 
 	it("should login successfully", function()
-		local file = io.open(response_file_path, "w")
-		file:write(
-			'{"AuthenticationResult": {"IdToken": "new_id_token", "AccessToken": "new_access_token", "RefreshToken": "new_refresh_token"}}'
-		)
-		file:close()
-
 		login.login()
-		assert.spy(tokens_spy.save_tokens).was_called()
-		assert.spy(tokens_spy.save_tokens).was_called_with(
-			"new_id_token",
-			"new_access_token",
-			"new_refresh_token",
-			"client_id_value",
-			"api_url_value",
-			"domain_value",
-			"region_value",
-			base64_token,
-			"mock_secret"
-		)
+		assert
+			.spy(tokens_spy.update_tokens_from_username_and_password)
+			.was_called_with("client_id_value", "region_value", "api_url_value", "domain_value", base64_token, "mock_secret")
 	end)
 
 	it("should handle incorrect username or password", function()
-		local file = io.open(response_file_path, "w")
-		file:write('{"error": "NotAuthorizedException"}')
-		file:close()
-
 		login.login()
-		assert.spy(tokens_spy.save_tokens).was_not_called()
+		assert
+			.spy(tokens_spy.update_tokens_from_username_and_password)
+			.was_called_with("client_id_value", "region_value", "api_url_value", "domain_value", base64_token, "mock_secret")
 	end)
 end)

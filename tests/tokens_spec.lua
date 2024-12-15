@@ -138,6 +138,8 @@ end)
 describe("refresh_token", function()
 	local original_tokens_get_tokens
 	local original_tokens_save_tokens
+	local original_update_tokens_from_username_and_password
+
 	before_each(function()
 		local file = io.open(token_file_path, "w")
 		file:write(
@@ -164,6 +166,9 @@ describe("refresh_token", function()
 		original_tokens_save_tokens = tokens.save_tokens
 		tokens.save_tokens = function() end
 
+		original_update_tokens_from_username_and_password = tokens.update_tokens_from_username_and_password
+		tokens.update_tokens_from_username_and_password = function() end
+
 		_G.vim = {
 			fn = {
 				json_decode = function(content)
@@ -183,6 +188,7 @@ describe("refresh_token", function()
 		os.remove(response_file_path)
 		tokens.get_tokens = original_tokens_get_tokens
 		tokens.save_tokens = original_tokens_save_tokens
+		tokens.update_tokens_from_username_and_password = original_update_tokens_from_username_and_password
 	end)
 
 	it("should call save_tokens when tokens are refreshed successfully", function()
@@ -217,7 +223,78 @@ describe("refresh_token", function()
 
 		tokens.refresh_token()
 
-		assert.spy(tokens_spy.save_tokens).was_not_called()
+		assert
+			.spy(tokens_spy.update_tokens_from_username_and_password)
+			.was_called_with("client_id", "apiUrl", "domain", "region", "username", "password")
+	end)
+end)
+
+describe("update_tokens_from_username_and_password", function()
+	local original_os_execute
+	local tokens_spy
+	local base64_token =
+		"ewogICAgImNsaWVudElkIjogImNsaWVudF9pZF92YWx1ZSIsCiAgICAiYXBpVXJsIjogImFwaV91cmxfdmFsdWUiLAogICAgImRvbWFpbiI6ICJkb21haW5fdmFsdWUiLAogICAgInJlZ2lvbiI6ICJyZWdpb25fdmFsdWUiCn0K"
+
+	before_each(function()
+		original_os_execute = os.execute
+		os.execute = function(cmd)
+			return 0
+		end
+
+		original_tokens_save_tokens = tokens.save_tokens
+		tokens.save_tokens = function() end
+
+		tokens_spy = busted.mock(tokens)
+	end)
+
+	after_each(function()
+		os.execute = original_os_execute
+		os.remove(response_file_path)
 		tokens_spy.save_tokens:clear()
+		tokens.save_tokens = original_tokens_save_tokens
+	end)
+
+	it("should login successfully", function()
+		local file = io.open(response_file_path, "w")
+		file:write(
+			'{"AuthenticationResult": {"IdToken": "new_id_token", "AccessToken": "new_access_token", "RefreshToken": "new_refresh_token"}}'
+		)
+		file:close()
+
+		tokens.update_tokens_from_username_and_password(
+			"client_id_value",
+			"region_value",
+			"api_url_value",
+			"domain_value",
+			base64_token,
+			"password"
+		)
+		assert.spy(tokens_spy.save_tokens).was_called_with(
+			"new_id_token",
+			"new_access_token",
+			"new_refresh_token",
+			"client_id_value",
+			"api_url_value",
+			"domain_value",
+			"region_value",
+			base64_token,
+			"password"
+		)
+	end)
+
+	it("should handle incorrect username or password", function()
+		local file = io.open(response_file_path, "w")
+		file:write('{"error": "NotAuthorizedException"}')
+		file:close()
+
+		tokens.update_tokens_from_username_and_password(
+			"client_id_value",
+			"region_value",
+			"api_url_value",
+			"domain_value",
+			base64_token,
+			"password"
+		)
+		assert.spy(tokens_spy.save_tokens).was_not_called()
 	end)
 end)

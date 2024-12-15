@@ -241,7 +241,8 @@ local function escape_str(s)
 end
 
 M.trim = function(s)
-	return (s:gsub("^%s*(.-)%s*$", "%1"))
+	-- return (s:gsub("\n$", ""))
+	return s:match("^%s*(.*)"):match("(.-)%s*$")
 end
 
 -- Function to convert a Lua table to JSON

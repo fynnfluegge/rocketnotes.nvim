@@ -93,9 +93,9 @@ M.sync = function()
 	print("Installing RocketNotes...")
 
 	local local_document_tree = utils.read_file(utils.get_tree_cache_file())
-	local remote_document_tree = http.getTree(access_token, api_url)
 	local lastRemoteModifiedTable = utils.loadRemoteLastModifiedTable()
 	local lastSyncedTable = utils.loadLastSyncedTable()
+	local remote_document_tree = http.getTree(access_token, api_url)
 
 	local start_index, end_index = string.find(remote_document_tree, "Unauthorized")
 	if start_index then
