@@ -90,9 +90,9 @@ end
 
 M.sync = function()
 	local id_token, access_token, refresh_token, clientId, api_url, domain, region = tokens.get_tokens()
-	print("Installing RocketNotes...")
+	print("Sync RocketNotes...")
 
-	local local_document_tree = utils.read_file(utils.get_tree_cache_file())
+	local local_document_tree = utils.load_tree_cache()
 	local lastRemoteModifiedTable = utils.load_remote_last_modified_table()
 	local lastSyncedTable = utils.load_last_synced_table()
 	local remote_document_tree = http.get_tree(access_token, api_url)
@@ -112,6 +112,8 @@ M.sync = function()
 	else
 		print("data.documents is not a table")
 	end
+
+	print("RocketNotes synced successfully")
 
 	---------------------------------------------
 	-- TODO upload newly local created documents and update remote document tree

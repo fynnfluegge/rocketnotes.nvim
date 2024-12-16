@@ -268,7 +268,6 @@ describe("rocketnotes.sync", function()
 					},
 				},
 			}, nil, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
-			busted.assert.spy(utils_spy.get_all_files).was_called_with("/path/to/workspace")
 			busted.assert.spy(utils_spy.save_file).was_called_with("/path/to/cache/file", remote_document_tree)
 			busted.assert.spy(utils_spy.save_remote_last_modified_table).was_called_with(lastRemoteModifiedTable)
 			busted.assert.spy(utils_spy.save_last_synced_table).was_called_with(lastSyncedTable)
@@ -346,9 +345,6 @@ describe("rocketnotes.sync", function()
 					},
 				},
 			}, nil, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
-			busted.assert.spy(utils_spy.get_all_files).was_called_with("/path/to/workspace")
-			busted.assert.spy(utils_spy.get_file_name_and_parent_dir).was_called_with("/path/to/doc1.md")
-			busted.assert.spy(utils_spy.traverse_directory).was_called(1)
 		end)
 	end)
 

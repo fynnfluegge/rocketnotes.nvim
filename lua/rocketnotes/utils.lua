@@ -42,14 +42,14 @@ M.file_exists = function(file)
 	return result == 0
 end
 
-M.read_file = function(file)
-	local file = io.open(file, "r")
+M.read_file = function(filename)
+	local file = io.open(filename, "r")
 	if file then
 		local content = file:read("*a")
 		file:close()
 		return content
 	else
-		print("Failed to open file for reading.")
+		print("Failed to open file for reading: " .. filename)
 	end
 end
 
@@ -99,6 +99,13 @@ M.load_last_synced_table = function()
 		return vim.fn.json_decode(M.read_file(lastModifiedTableFile))
 	end
 	return {}
+end
+
+M.load_tree_cache = function()
+	local treeCacheFile = M.get_tree_cache_file()
+	if M.file_exists(treeCacheFile) then
+		return vim.fn.json_decode(M.read_file(treeCacheFile))
+	end
 end
 
 M.save_remote_last_modified_table = function(lastRemoteModifiedTable)
