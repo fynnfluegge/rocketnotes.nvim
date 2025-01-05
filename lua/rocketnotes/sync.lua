@@ -50,8 +50,7 @@ M.save_document = function(
 			return document.lastModified, lastModified
 		-- If only local file was modified, do save document post request
 		elseif localModified then
-			document.lastModified =
-				os.date("%Y-%m-%dT%H:%M:%S", utils.get_last_modified_date_of_file(filePath:gsub(" ", "\\ ")))
+			document.lastModified = utils.get_last_modified_date_of_file(filePath:gsub(" ", "\\ "))
 			local new_document = {}
 			local decoded_token = utils.decode_token(access_token)
 			local user_id = decoded_token.username
@@ -59,16 +58,19 @@ M.save_document = function(
 			new_document.userId = user_id
 			new_document.name = document.name
 			new_document.content = utils.read_file(filePath)
-			new_document.recreateIndex = false
 			new_document.lastModified = document.lastModified
+			-- TODO set isPublic and recreateIndex. Deleted is always false
+			-- new_document.recreateIndex = true
+			-- new_document.isPublic = document.isPublic
+			-- new_document.deleted = false
 			local body = {}
 			body.document = new_document
 			body.documentTree = remote_document_tree_table
 			http.post_document(access_token, api_url, body)
 			utils.save_file(utils.get_tree_cache_file(), vim.fn.json_encode(remote_document_tree_table))
-			return document.last_modified, localFileLastModifiedDate
+			return document.lastModified, localFileLastModifiedDate
 		else
-			return document.last_modified, localFileLastModifiedDate
+			return document.lastModified, localFileLastModifiedDate
 		end
 	end
 end
@@ -193,7 +195,6 @@ M.sync = function()
 		end
 	end
 	---------------------------------------------
-
 	utils.save_remote_last_modified_table(lastRemoteModifiedTable)
 	utils.save_last_synced_table(lastSyncedTable)
 end

@@ -13,13 +13,14 @@ describe("rocketnotes.sync", function()
 		local lastRemoteModified = "2023-09-30T12:00:00Z"
 		local documentTitle = "Test Document"
 		local documentContent = "This is a test document."
-		local document = '{"id": "doc1", "title": "'
-			.. documentTitle
-			.. '", "content": "'
-			.. documentContent
-			.. '", "lastModified": "'
-			.. lastRemoteModified
-			.. '"}'
+		local document = {
+			id = "doc1",
+			name = documentTitle,
+			content = documentContent,
+			lastModified = lastRemoteModified,
+		}
+		local remote_document =
+			'{"id": "doc1", "title": "Test Document", "content": "This is a test document.", "lastModified": "2023-09-30T12:00:00Z"}'
 		local path = "/path/to/documents"
 		local lastSynced = "2023-09-31T12:00:00Z"
 		local lastRemoteModifiedTable = { doc1 = lastRemoteModified }
@@ -27,6 +28,7 @@ describe("rocketnotes.sync", function()
 		local access_token = "dummy_access_token"
 		local api_url = "https://api.example.com"
 		local lastLocalModified = "2023-09-29T12:00:00Z"
+		local dummy_remote_document_tree = {}
 		local utils_mock
 		local http_mock
 		local utils_spy
@@ -42,6 +44,7 @@ describe("rocketnotes.sync", function()
 
 			http_mock = mock(http, true)
 			http_mock.post_document.returns()
+			http_mock.get_document.returns(remote_document)
 
 			http_spy = busted.spy.on(http, "post_document")
 
@@ -69,8 +72,15 @@ describe("rocketnotes.sync", function()
 		it("should create a new file if it does not exist", function()
 			utils_mock.file_exists.returns(false)
 
-			local date1, date2 =
-				sync.save_document(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url)
+			local date1, date2 = sync.save_document(
+				document,
+				path,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				access_token,
+				api_url,
+				dummy_remote_document_tree
+			)
 
 			busted.assert.spy(utils_spy.create_file).was.called_with(path .. "/" .. file_name)
 			busted.assert.spy(utils_spy.write_file).was.called_with(path .. "/" .. file_name, documentContent)
@@ -117,7 +127,8 @@ describe("rocketnotes.sync", function()
 				{ doc1 = remoteModifiedDocument },
 				lastSyncedTable,
 				access_token,
-				api_url
+				api_url,
+				dummy_remote_document_tree
 			)
 
 			assert.are.equal(date1, lastRemoteModified)
@@ -140,7 +151,8 @@ describe("rocketnotes.sync", function()
 					{ doc1 = remoteModifiedDocument },
 					lastSyncedTable,
 					access_token,
-					api_url
+					api_url,
+					dummy_remote_document_tree
 				)
 
 				assert.are.equal(date1, lastRemoteModified)
@@ -155,8 +167,15 @@ describe("rocketnotes.sync", function()
 			utils_mock.file_exists.returns(true)
 			utils_mock.get_last_modified_date_of_file.returns(lastSynced)
 
-			local date1, date2 =
-				sync.save_document(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url)
+			local date1, date2 = sync.save_document(
+				document,
+				path,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				access_token,
+				api_url,
+				dummy_remote_document_tree
+			)
 
 			assert.are.equal(date1, lastRemoteModified)
 			assert.are.equal(date2, lastSynced)

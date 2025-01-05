@@ -206,7 +206,7 @@ M.get_last_modified_date_of_file = function(file_path)
 	local handle = io.popen("stat -f %m " .. file_path)
 	local result = handle:read("*a")
 	handle:close()
-	return tonumber(result)
+	return os.date("%Y-%m-%dT%H:%M:%S", tonumber(result))
 end
 
 M.traverse_directory = function(dir, callback)
