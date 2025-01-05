@@ -61,11 +61,10 @@ M.save_document = function(
 			new_document.content = utils.read_file(filePath)
 			new_document.recreateIndex = false
 			new_document.lastModified = document.lastModified
-			local new_document_tree = {}
 			local body = {}
 			body.document = new_document
 			body.documentTree = remote_document_tree_table
-			-- http.post_document(access_token, api_url, body)
+			http.post_document(access_token, api_url, body)
 			utils.save_file(utils.get_tree_cache_file(), vim.fn.json_encode(remote_document_tree_table))
 			return document.last_modified, localFileLastModifiedDate
 		else

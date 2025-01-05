@@ -248,26 +248,42 @@ describe("rocketnotes.sync", function()
 		it("should sync documents correctly", function()
 			sync.sync()
 			busted.assert.spy(process_document_spy).was_called(2)
-			busted.assert.spy(process_document_spy).was_called_with({
-				id = "doc1",
-				name = "doc1",
-				children = {
-					{
-						id = "doc2",
-						name = "doc2",
+			busted.assert.spy(process_document_spy).was_called_with(
+				{
+					id = "doc1",
+					name = "doc1",
+					children = {
+						{
+							id = "doc2",
+							name = "doc2",
+						},
 					},
 				},
-			}, nil, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
-			busted.assert.spy(process_document_spy).was_called_with({
-				id = "doc3",
-				name = "doc3",
-				children = {
-					{
-						id = "doc4",
-						name = "doc4",
+				nil,
+				access_token,
+				api_url,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				vim.fn.json_decode(remote_document_tree)
+			)
+			busted.assert.spy(process_document_spy).was_called_with(
+				{
+					id = "doc3",
+					name = "doc3",
+					children = {
+						{
+							id = "doc4",
+							name = "doc4",
+						},
 					},
 				},
-			}, nil, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
+				nil,
+				access_token,
+				api_url,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				vim.fn.json_decode(remote_document_tree)
+			)
 			busted.assert.spy(utils_spy.save_file).was_called_with("/path/to/cache/file", remote_document_tree)
 			busted.assert.spy(utils_spy.save_remote_last_modified_table).was_called_with(lastRemoteModifiedTable)
 			busted.assert.spy(utils_spy.save_last_synced_table).was_called_with(lastSyncedTable)
@@ -335,29 +351,55 @@ describe("rocketnotes.sync", function()
 			sync.sync()
 
 			busted.assert.spy(process_document_spy).was_called(2)
-			busted.assert.spy(process_document_spy).was_called_with({
-				id = "doc1",
-				name = "doc1",
-				children = {
-					{
-						id = "doc2",
-						name = "doc2",
+			busted.assert.spy(process_document_spy).was_called_with(
+				{
+					id = "doc1",
+					name = "doc1",
+					children = {
+						{
+							id = "doc2",
+							name = "doc2",
+						},
 					},
 				},
-			}, nil, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
+				nil,
+				access_token,
+				api_url,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				vim.fn.json_decode(remote_document_tree)
+			)
+			busted.assert.spy(process_document_spy).was_called_with(
+				{
+					id = "doc3",
+					name = "doc3",
+					children = {
+						{
+							id = "doc4",
+							name = "doc4",
+						},
+					},
+				},
+				nil,
+				access_token,
+				api_url,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				vim.fn.json_decode(remote_document_tree)
+			)
 		end)
 	end)
 
 	describe("create_document_space", function()
-		local documentId = "doc1"
 		local documentPath = "path/to/doc1"
 		local access_token = "dummy_access_token"
 		local apiUrl = "https://api.example.com"
 		local lastRemoteModifiedTable = {}
 		local lastSyncedTable = {}
-		local documentContent =
+		local document =
 			'{"id": "doc1", "title": "Test Document", "content": "This is a test document.", "lastModified": "2023-10-01T12:00:00Z"}'
 		local workspace_path = "/workspace"
+		local dummy_document_tree = {}
 
 		local utils_mock
 		local http_mock
@@ -389,20 +431,26 @@ describe("rocketnotes.sync", function()
 
 		it("should create document space and save document", function()
 			sync.create_document_space(
-				documentId,
+				document,
 				documentPath,
 				access_token,
 				apiUrl,
 				lastRemoteModifiedTable,
-				lastSyncedTable
+				lastSyncedTable,
+				dummy_document_tree
 			)
 
 			local expected_path = workspace_path .. "/" .. documentPath
 			busted.assert.spy(utils_spy.create_directory_if_not_exists).was_called_with(expected_path)
-			busted.assert.spy(http_spy.get_document).was_called_with(access_token, documentId, apiUrl)
-			busted.assert
-				.spy(save_document_spy)
-				.was_called_with(documentContent, expected_path, lastRemoteModifiedTable, lastSyncedTable, access_token, apiUrl)
+			busted.assert.spy(save_document_spy).was_called_with(
+				document,
+				expected_path,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				access_token,
+				apiUrl,
+				dummy_document_tree
+			)
 		end)
 	end)
 
@@ -426,6 +474,7 @@ describe("rocketnotes.sync", function()
 		local api_url = "https://api.example.com"
 		local lastRemoteModifiedTable = {}
 		local lastSyncedTable = {}
+		local dummy_document_tree = {}
 
 		local original_create_document_space
 		local process_document_spy
@@ -451,41 +500,62 @@ describe("rocketnotes.sync", function()
 				access_token,
 				api_url,
 				lastRemoteModifiedTable,
-				lastSyncedTable
+				lastSyncedTable,
+				dummy_document_tree
 			)
 
 			busted.assert.spy(create_document_space_spy).was_called(3)
 			busted.assert.spy(process_document_spy).was_called(3)
 
-			busted.assert
-				.spy(create_document_space_spy)
-				.was_called_with(document.id, document.name, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
+			busted.assert.spy(create_document_space_spy).was_called_with(
+				document,
+				document.name,
+				access_token,
+				api_url,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				dummy_document_tree
+			)
 
 			busted.assert.spy(create_document_space_spy).was_called_with(
-				document.children[1].id,
+				document.children[1],
 				document.name .. "/" .. document.children[1].name,
 				access_token,
 				api_url,
 				lastRemoteModifiedTable,
-				lastSyncedTable
+				lastSyncedTable,
+				dummy_document_tree
 			)
 
 			busted.assert.spy(create_document_space_spy).was_called_with(
-				document.children[2].id,
+				document.children[2],
 				document.name .. "/" .. document.children[2].name,
 				access_token,
 				api_url,
 				lastRemoteModifiedTable,
-				lastSyncedTable
+				lastSyncedTable,
+				dummy_document_tree
 			)
 
-			busted.assert
-				.spy(process_document_spy)
-				.was_called_with(document.children[1], document.name, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
+			busted.assert.spy(process_document_spy).was_called_with(
+				document.children[1],
+				document.name,
+				access_token,
+				api_url,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				dummy_document_tree
+			)
 
-			busted.assert
-				.spy(process_document_spy)
-				.was_called_with(document.children[2], document.name, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
+			busted.assert.spy(process_document_spy).was_called_with(
+				document.children[2],
+				document.name,
+				access_token,
+				api_url,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				dummy_document_tree
+			)
 		end)
 
 		it("should process a document without children", function()
@@ -500,21 +570,21 @@ describe("rocketnotes.sync", function()
 				access_token,
 				api_url,
 				lastRemoteModifiedTable,
-				lastSyncedTable
+				lastSyncedTable,
+				dummy_document_tree
 			)
 
 			busted.assert.spy(create_document_space_spy).was_called(1)
 			busted.assert.spy(process_document_spy).was_called(1)
-			busted.assert
-				.spy(create_document_space_spy)
-				.was_called_with(
-					single_document.id,
-					single_document.name,
-					access_token,
-					api_url,
-					lastRemoteModifiedTable,
-					lastSyncedTable
-				)
+			busted.assert.spy(create_document_space_spy).was_called_with(
+				single_document,
+				single_document.name,
+				access_token,
+				api_url,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				dummy_document_tree
+			)
 		end)
 	end)
 end)
