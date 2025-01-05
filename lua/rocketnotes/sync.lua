@@ -116,13 +116,13 @@ M.save_document = function(
 			new_document.userId = decoded_token.username
 			new_document.title = document.name
 			new_document.content = utils.read_file(filePath)
-			new_document.lastModified = document.lastModified
+			new_document.lastModified = localFileLastModifiedDate
 			new_document.recreateIndex = false
 			local body = {}
 			body.document = new_document
 			body.documentTree = remote_document_tree_table
 			http.post_document(access_token, api_url, body)
-			return document.lastModified, localFileLastModifiedDate
+			return localFileLastModifiedDate, localFileLastModifiedDate
 		else
 			return document.lastModified, localFileLastModifiedDate
 		end

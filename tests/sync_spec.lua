@@ -106,7 +106,7 @@ describe("rocketnotes.sync", function()
 				dummy_remote_document_tree
 			)
 
-			assert.are.equal(date1, lastRemoteModified)
+			assert.are.equal(date1, lastLocalModified)
 			assert.are.equal(date2, lastLocalModified)
 			busted.assert.spy(utils_spy.create_file).was.not_called()
 			busted.assert.spy(utils_spy.write_file).was.not_called_with()
@@ -120,7 +120,7 @@ describe("rocketnotes.sync", function()
 						userId = "dummy_user_id",
 						title = "Test Document",
 						content = "This is a test document.",
-						lastModified = lastRemoteModified,
+						lastModified = lastLocalModified,
 						recreateIndex = false,
 					},
 					documentTree = dummy_remote_document_tree,
