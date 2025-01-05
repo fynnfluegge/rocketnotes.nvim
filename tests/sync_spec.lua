@@ -16,7 +16,6 @@ describe("rocketnotes.sync", function()
 		local document = {
 			id = "doc1",
 			name = documentTitle,
-			content = documentContent,
 			lastModified = lastRemoteModified,
 		}
 		local remote_document =
@@ -40,6 +39,7 @@ describe("rocketnotes.sync", function()
 			utils_mock.write_file.returns()
 			utils_mock.read_file.returns("This is a test document.")
 			utils_mock.get_last_modified_date_of_file.returns(lastLocalModified)
+			utils_mock.decode_token.returns({ username = "dummy_user_id" })
 			utils_spy = busted.mock(utils)
 
 			http_mock = mock(http, true)
@@ -106,6 +106,7 @@ describe("rocketnotes.sync", function()
 				busted.match.is_same({
 					document = {
 						id = "doc1",
+						userId = "dummy_user_id",
 						title = "Test Document",
 						content = "This is a test document.",
 						lastModified = lastRemoteModified,

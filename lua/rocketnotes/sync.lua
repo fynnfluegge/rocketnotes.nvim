@@ -14,6 +14,66 @@ M.save_document = function(
 	api_url,
 	remote_document_tree_table
 )
+	-- local filePath = document_path .. "/" .. document.name .. ".md"
+	-- local localFileExists = utils.file_exists(filePath)
+	--
+	-- if not localFileExists then
+	-- 	local document_file = utils.create_file(filePath)
+	-- 	local remote_document = http.get_document(access_token, document.id, api_url)
+	-- 	remote_document = vim.fn.json_decode(remote_document)
+	-- 	utils.write_file(document_file, remote_document.content)
+	-- 	return document.lastModified, utils.get_last_modified_date_of_file(document_file:gsub(" ", "\\ "))
+	-- else
+	-- 	local localFileLastModifiedDate = utils.get_last_modified_date_of_file(filePath:gsub(" ", "\\ "))
+	-- 	local localModified = true
+	-- 	local remoteModified = true
+	-- 	if localFileLastModifiedDate == last_synced_table[document.id] then
+	-- 		localModified = false
+	-- 	end
+	-- 	if document.lastModified == last_remote_modified_table[document.id] then
+	-- 		remoteModified = false
+	-- 	end
+	-- 	-- check if local file was modified and remote file was modified. If yes, save a second copy of the file
+	-- 	if localModified and remoteModified then
+	-- 		local document_file_remote = utils.create_file(document_path .. "/" .. document.name .. "_remote.md")
+	-- 		local remote_document = http.get_document(access_token, document.id, api_url)
+	-- 		remote_document = vim.fn.json_decode(remote_document)
+	-- 		utils.write_file(document_file_remote, remote_document.content)
+	-- 		return document.lastModified, localFileLastModifiedDate
+	-- 	-- If only remote file was modified, update the local file
+	-- 	elseif remoteModified then
+	-- 		local document_file = utils.create_file(document_path .. "/" .. document.name .. ".md")
+	-- 		local remote_document = http.get_document(access_token, document.id, api_url)
+	-- 		remote_document = vim.fn.json_decode(remote_document)
+	-- 		utils.write_file(document_file, remote_document.content)
+	-- 		local lastModified = utils.get_last_modified_date_of_file(document_file:gsub(" ", "\\ "))
+	-- 		return document.lastModified, lastModified
+	-- 	-- If only local file was modified, do save document post request
+	-- 	elseif localModified then
+	-- 		document.lastModified = utils.get_last_modified_date_of_file(filePath:gsub(" ", "\\ "))
+	-- 		local new_document = {}
+	-- 		local decoded_token = utils.decode_token(access_token)
+	-- 		local user_id = decoded_token.username
+	-- 		new_document.id = document.id
+	-- 		new_document.userId = user_id
+	-- 		new_document.name = document.name
+	-- 		new_document.content = utils.read_file(filePath)
+	-- 		new_document.lastModified = document.lastModified
+	-- 		-- TODO set isPublic and recreateIndex. Deleted is always false
+	-- 		-- new_document.recreateIndex = true
+	-- 		-- new_document.isPublic = document.isPublic
+	-- 		-- new_document.deleted = false
+	-- 		local body = {}
+	-- 		body.document = new_document
+	-- 		body.documentTree = remote_document_tree_table
+	-- 		http.post_document(access_token, api_url, body)
+	-- 		utils.save_file(utils.get_tree_cache_file(), vim.fn.json_encode(remote_document_tree_table))
+	-- 		return document.lastModified, localFileLastModifiedDate
+	-- 	else
+	-- 		return document.lastModified, localFileLastModifiedDate
+	-- 	end
+	-- end
+	-- document = vim.fn.json_decode(document)
 	local filePath = document_path .. "/" .. document.name .. ".md"
 	local localFileExists = utils.file_exists(filePath)
 
@@ -50,24 +110,18 @@ M.save_document = function(
 			return document.lastModified, lastModified
 		-- If only local file was modified, do save document post request
 		elseif localModified then
-			document.lastModified = utils.get_last_modified_date_of_file(filePath:gsub(" ", "\\ "))
 			local new_document = {}
 			local decoded_token = utils.decode_token(access_token)
-			local user_id = decoded_token.username
 			new_document.id = document.id
-			new_document.userId = user_id
-			new_document.name = document.name
+			new_document.userId = decoded_token.username
+			new_document.title = document.name
 			new_document.content = utils.read_file(filePath)
 			new_document.lastModified = document.lastModified
-			-- TODO set isPublic and recreateIndex. Deleted is always false
-			-- new_document.recreateIndex = true
-			-- new_document.isPublic = document.isPublic
-			-- new_document.deleted = false
+			new_document.recreateIndex = false
 			local body = {}
 			body.document = new_document
 			body.documentTree = remote_document_tree_table
 			http.post_document(access_token, api_url, body)
-			utils.save_file(utils.get_tree_cache_file(), vim.fn.json_encode(remote_document_tree_table))
 			return document.lastModified, localFileLastModifiedDate
 		else
 			return document.lastModified, localFileLastModifiedDate
