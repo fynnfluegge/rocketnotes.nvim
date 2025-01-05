@@ -122,6 +122,8 @@ M.save_document = function(
 			body.document = new_document
 			body.documentTree = remote_document_tree_table
 			http.post_document(access_token, api_url, body)
+			document.lastModified = localFileLastModifiedDate
+			utils.save_remote_tree_cache(remote_document_tree_table)
 			return localFileLastModifiedDate, localFileLastModifiedDate
 		else
 			return document.lastModified, localFileLastModifiedDate

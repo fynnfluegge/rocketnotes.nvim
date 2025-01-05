@@ -13,11 +13,7 @@ describe("rocketnotes.sync", function()
 		local lastRemoteModified = "2023-09-30T12:00:00Z"
 		local documentTitle = "Test Document"
 		local documentContent = "This is a test document."
-		local document = {
-			id = "doc1",
-			name = documentTitle,
-			lastModified = lastRemoteModified,
-		}
+		local document
 		local remote_document =
 			'{"id": "doc1", "title": "Test Document", "content": "This is a test document.", "lastModified": "2023-09-30T12:00:00Z"}'
 		local path = "/path/to/documents"
@@ -35,9 +31,15 @@ describe("rocketnotes.sync", function()
 		local http_spy_get
 
 		before_each(function()
+			document = {
+				id = "doc1",
+				name = documentTitle,
+				lastModified = lastRemoteModified,
+			}
 			utils_mock = mock(utils, true)
 			utils_mock.create_file.returns(path .. "/Test Document.md")
 			utils_mock.write_file.returns()
+			utils_mock.save_remote_tree_cache.returns()
 			utils_mock.read_file.returns("This is a test document.")
 			utils_mock.get_last_modified_date_of_file.returns(lastLocalModified)
 			utils_mock.decode_token.returns({ username = "dummy_user_id" })
@@ -111,6 +113,7 @@ describe("rocketnotes.sync", function()
 			busted.assert.spy(utils_spy.create_file).was.not_called()
 			busted.assert.spy(utils_spy.write_file).was.not_called_with()
 			busted.assert.spy(utils_spy.read_file).was.called_with(path .. "/" .. file_name)
+			busted.assert.spy(utils_spy.save_remote_tree_cache).was.called_with(dummy_remote_document_tree)
 			busted.assert.spy(http_spy_post).was_called_with(
 				access_token,
 				api_url,

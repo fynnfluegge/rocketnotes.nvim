@@ -118,6 +118,11 @@ M.save_last_synced_table = function(lastModifiedTable)
 	M.write_file(lastModifiedTableFile, vim.fn.json_encode(lastModifiedTable))
 end
 
+M.save_remote_tree_cache = function(tree)
+	local treeCacheFile = M.create_file(M.get_tree_cache_file())
+	M.write_file(treeCacheFile, vim.fn.json_encode(tree))
+end
+
 M.decode_token = function(token)
 	local jq_command =
 		string.format("echo '%s' | jq -R 'split(\".\") | select(length > 0) | .[1] | @base64d | fromjson'", token)
