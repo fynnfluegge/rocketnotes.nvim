@@ -268,6 +268,8 @@ M.table_to_json = function(tbl)
 				table.insert(result, '"' .. escape_str(v) .. '"')
 			elseif type(v) == "number" or type(v) == "boolean" then
 				table.insert(result, tostring(v))
+			elseif type(v) == "userdata" then
+				table.insert(result, nil)
 			else
 				error("Unsupported data type: " .. type(v))
 			end
