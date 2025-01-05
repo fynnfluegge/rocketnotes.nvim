@@ -31,7 +31,8 @@ describe("rocketnotes.sync", function()
 		local utils_mock
 		local http_mock
 		local utils_spy
-		local http_spy
+		local http_spy_post
+		local http_spy_get
 
 		before_each(function()
 			utils_mock = mock(utils, true)
@@ -46,7 +47,8 @@ describe("rocketnotes.sync", function()
 			http_mock.post_document.returns()
 			http_mock.get_document.returns(remote_document)
 
-			http_spy = busted.spy.on(http, "post_document")
+			http_spy_post = busted.spy.on(http, "post_document")
+			http_spy_get = busted.spy.on(http, "get_document")
 
 			_G.vim = {
 				fn = {
@@ -66,7 +68,8 @@ describe("rocketnotes.sync", function()
 			utils_spy.create_file:clear()
 			utils_spy.write_file:clear()
 			utils_spy.read_file:clear()
-			http_spy:revert()
+			http_spy_post:revert()
+			http_spy_get:revert()
 		end)
 
 		it("should create a new file if it does not exist", function()
@@ -86,7 +89,8 @@ describe("rocketnotes.sync", function()
 			busted.assert.spy(utils_spy.write_file).was.called_with(path .. "/" .. file_name, documentContent)
 			assert.are.equal(date1, lastRemoteModified)
 			assert.are.equal(date2, lastLocalModified)
-			busted.assert.spy(http_spy).was_not_called()
+			busted.assert.spy(http_spy_post).was_not_called()
+			busted.assert.spy(http_spy_get).was_called(1)
 		end)
 
 		it("should update the remote document if only local file was modified", function()
@@ -100,7 +104,7 @@ describe("rocketnotes.sync", function()
 			busted.assert.spy(utils_spy.create_file).was.not_called()
 			busted.assert.spy(utils_spy.write_file).was.not_called_with()
 			busted.assert.spy(utils_spy.read_file).was.called_with(path .. "/" .. file_name)
-			busted.assert.spy(http_spy).was_called_with(
+			busted.assert.spy(http_spy_post).was_called_with(
 				access_token,
 				api_url,
 				busted.match.is_same({
@@ -114,6 +118,7 @@ describe("rocketnotes.sync", function()
 					},
 				})
 			)
+			busted.assert.spy(http_spy_get).was_not_called()
 		end)
 
 		it("should update the local file if only remote document was modified", function()
@@ -136,7 +141,8 @@ describe("rocketnotes.sync", function()
 			assert.are.equal(date2, remoteModifiedDocument)
 			busted.assert.spy(utils_spy.create_file).was.called_with(path .. "/" .. file_name)
 			busted.assert.spy(utils_spy.write_file).was.called_with(path .. "/" .. file_name, documentContent)
-			busted.assert.spy(http_spy).was_not_called()
+			busted.assert.spy(http_spy_post).was_not_called()
+			busted.assert.spy(http_spy_get).was_called(1)
 		end)
 
 		it(
@@ -160,7 +166,8 @@ describe("rocketnotes.sync", function()
 				assert.are.equal(date2, lastLocalModified)
 				busted.assert.spy(utils_spy.create_file).was.called_with(path .. "/" .. documentTitle .. "_remote.md")
 				busted.assert.spy(utils_spy.write_file).was.called_with(path .. "/" .. file_name, documentContent)
-				busted.assert.spy(http_spy).was_not_called()
+				busted.assert.spy(http_spy_post).was_not_called()
+				busted.assert.spy(http_spy_get).was_called(1)
 			end
 		)
 
@@ -182,7 +189,8 @@ describe("rocketnotes.sync", function()
 			assert.are.equal(date2, lastSynced)
 			busted.assert.spy(utils_spy.create_file).was.not_called()
 			busted.assert.spy(utils_spy.write_file).was.not_called()
-			busted.assert.spy(http_spy).was_not_called()
+			busted.assert.spy(http_spy_post).was_not_called()
+			busted.assert.spy(http_spy_get).was_not_called()
 		end)
 	end)
 
