@@ -27,7 +27,7 @@ describe("rocketnotes.sync", function()
 		local access_token = "dummy_access_token"
 		local api_url = "https://api.example.com"
 		local lastLocalModified = "2023-09-29T12:00:00Z"
-		local dummy_remote_document_tree = {}
+		local dummy_remote_document_tree = { documents = {} }
 		local utils_mock
 		local http_mock
 		local utils_spy
@@ -96,8 +96,15 @@ describe("rocketnotes.sync", function()
 		it("should update the remote document if only local file was modified", function()
 			utils_mock.file_exists.returns(true)
 
-			local date1, date2 =
-				sync.save_document(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url)
+			local date1, date2 = sync.save_document(
+				document,
+				path,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				access_token,
+				api_url,
+				dummy_remote_document_tree
+			)
 
 			assert.are.equal(date1, lastRemoteModified)
 			assert.are.equal(date2, lastLocalModified)
@@ -116,6 +123,7 @@ describe("rocketnotes.sync", function()
 						lastModified = lastRemoteModified,
 						recreateIndex = false,
 					},
+					documentTree = dummy_remote_document_tree,
 				})
 			)
 			busted.assert.spy(http_spy_get).was_not_called()
