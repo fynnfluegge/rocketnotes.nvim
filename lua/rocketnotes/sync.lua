@@ -50,8 +50,8 @@ M.save_document = function(
 			return document.lastModified, lastModified
 		-- If only local file was modified, do save document post request
 		elseif localModified then
-			document.lastModified = utils.get_last_modified_date_of_file(filePath:gsub(" ", "\\ "))
-			document.lastModified = os.date("%Y-%m-%dT%H:%M:%S", document.lastModified)
+			document.lastModified =
+				os.date("%Y-%m-%dT%H:%M:%S", utils.get_last_modified_date_of_file(filePath:gsub(" ", "\\ ")))
 			local new_document = {}
 			local decoded_token = utils.decode_token(access_token)
 			local user_id = decoded_token.username
