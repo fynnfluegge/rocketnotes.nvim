@@ -110,6 +110,8 @@ M.save_document = function(
 			return document.lastModified, lastModified
 		-- If only local file was modified, do save document post request
 		elseif localModified then
+			document.lastModified = localFileLastModifiedDate
+			utils.save_remote_tree_cache(remote_document_tree_table)
 			local new_document = {}
 			local decoded_token = utils.decode_token(access_token)
 			new_document.id = document.id
@@ -118,12 +120,11 @@ M.save_document = function(
 			new_document.content = utils.read_file(filePath)
 			new_document.lastModified = localFileLastModifiedDate
 			new_document.recreateIndex = false
-			local body = {}
-			body.document = new_document
-			body.documentTree = remote_document_tree_table
+			local body = {
+				document = new_document,
+				documentTree = remote_document_tree_table,
+			}
 			http.post_document(access_token, api_url, body)
-			document.lastModified = localFileLastModifiedDate
-			utils.save_remote_tree_cache(remote_document_tree_table)
 			return localFileLastModifiedDate, localFileLastModifiedDate
 		else
 			return document.lastModified, localFileLastModifiedDate

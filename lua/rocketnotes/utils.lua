@@ -211,7 +211,7 @@ M.get_last_modified_date_of_file = function(file_path)
 	local handle = io.popen("stat -f %m " .. file_path)
 	local result = handle:read("*a")
 	handle:close()
-	return os.date("%Y-%m-%dT%H:%M:%S", tonumber(result))
+	return os.date("%Y-%m-%dT%H:%M:%S", tonumber(result)) .. "Z"
 end
 
 M.traverse_directory = function(dir, callback)
@@ -248,7 +248,7 @@ M.map = function(tbl)
 end
 
 -- Function to escape special characters in strings
-local function escape_str(s)
+M.escape_str = function(s)
 	return s:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\n", "\\n"):gsub("\r", "\\r"):gsub("\t", "\\t")
 end
 
@@ -265,16 +265,16 @@ M.table_to_json = function(tbl)
 			end
 			first = false
 			if not is_array then
-				table.insert(result, '"' .. escape_str(tostring(k)) .. '":')
+				table.insert(result, '"' .. M.escape_str(tostring(k)) .. '":')
 			end
 			if type(v) == "table" then
 				serialize(v)
 			elseif type(v) == "string" then
-				table.insert(result, '"' .. escape_str(v) .. '"')
+				table.insert(result, '"' .. M.escape_str(v) .. '"')
 			elseif type(v) == "number" or type(v) == "boolean" then
 				table.insert(result, tostring(v))
 			elseif type(v) == "userdata" then
-				table.insert(result, nil)
+				table.insert(result, "null")
 			else
 				error("Unsupported data type: " .. type(v))
 			end
