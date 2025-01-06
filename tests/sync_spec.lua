@@ -13,13 +13,9 @@ describe("rocketnotes.sync", function()
 		local lastRemoteModified = "2023-09-30T12:00:00Z"
 		local documentTitle = "Test Document"
 		local documentContent = "This is a test document."
-		local document = '{"id": "doc1", "title": "'
-			.. documentTitle
-			.. '", "content": "'
-			.. documentContent
-			.. '", "lastModified": "'
-			.. lastRemoteModified
-			.. '"}'
+		local document
+		local remote_document =
+			'{"id": "doc1", "title": "Test Document", "content": "This is a test document.", "lastModified": "2023-09-30T12:00:00Z"}'
 		local path = "/path/to/documents"
 		local lastSynced = "2023-09-31T12:00:00Z"
 		local lastRemoteModifiedTable = { doc1 = lastRemoteModified }
@@ -27,23 +23,34 @@ describe("rocketnotes.sync", function()
 		local access_token = "dummy_access_token"
 		local api_url = "https://api.example.com"
 		local lastLocalModified = "2023-09-29T12:00:00Z"
+		local dummy_remote_document_tree = { documents = {} }
 		local utils_mock
 		local http_mock
 		local utils_spy
-		local http_spy
+		local http_spy_post
+		local http_spy_get
 
 		before_each(function()
+			document = {
+				id = "doc1",
+				name = documentTitle,
+				lastModified = lastRemoteModified,
+			}
 			utils_mock = mock(utils, true)
 			utils_mock.create_file.returns(path .. "/Test Document.md")
 			utils_mock.write_file.returns()
+			utils_mock.save_remote_tree_cache.returns()
 			utils_mock.read_file.returns("This is a test document.")
 			utils_mock.get_last_modified_date_of_file.returns(lastLocalModified)
+			utils_mock.decode_token.returns({ username = "dummy_user_id" })
 			utils_spy = busted.mock(utils)
 
 			http_mock = mock(http, true)
 			http_mock.post_document.returns()
+			http_mock.get_document.returns(remote_document)
 
-			http_spy = busted.spy.on(http, "post_document")
+			http_spy_post = busted.spy.on(http, "post_document")
+			http_spy_get = busted.spy.on(http, "get_document")
 
 			_G.vim = {
 				fn = {
@@ -63,46 +70,66 @@ describe("rocketnotes.sync", function()
 			utils_spy.create_file:clear()
 			utils_spy.write_file:clear()
 			utils_spy.read_file:clear()
-			http_spy:revert()
+			http_spy_post:revert()
+			http_spy_get:revert()
 		end)
 
 		it("should create a new file if it does not exist", function()
 			utils_mock.file_exists.returns(false)
 
-			local date1, date2 =
-				sync.save_document(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url)
+			local date1, date2 = sync.save_document(
+				document,
+				path,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				access_token,
+				api_url,
+				dummy_remote_document_tree
+			)
 
 			busted.assert.spy(utils_spy.create_file).was.called_with(path .. "/" .. file_name)
 			busted.assert.spy(utils_spy.write_file).was.called_with(path .. "/" .. file_name, documentContent)
 			assert.are.equal(date1, lastRemoteModified)
 			assert.are.equal(date2, lastLocalModified)
-			busted.assert.spy(http_spy).was_not_called()
+			busted.assert.spy(http_spy_post).was_not_called()
+			busted.assert.spy(http_spy_get).was_called(1)
 		end)
 
 		it("should update the remote document if only local file was modified", function()
 			utils_mock.file_exists.returns(true)
 
-			local date1, date2 =
-				sync.save_document(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url)
+			local date1, date2 = sync.save_document(
+				document,
+				path,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				access_token,
+				api_url,
+				dummy_remote_document_tree
+			)
 
-			assert.are.equal(date1, lastRemoteModified)
+			assert.are.equal(date1, lastLocalModified)
 			assert.are.equal(date2, lastLocalModified)
 			busted.assert.spy(utils_spy.create_file).was.not_called()
 			busted.assert.spy(utils_spy.write_file).was.not_called_with()
 			busted.assert.spy(utils_spy.read_file).was.called_with(path .. "/" .. file_name)
-			busted.assert.spy(http_spy).was_called_with(
+			busted.assert.spy(utils_spy.save_remote_tree_cache).was.called_with(dummy_remote_document_tree)
+			busted.assert.spy(http_spy_post).was_called_with(
 				access_token,
 				api_url,
 				busted.match.is_same({
 					document = {
 						id = "doc1",
+						userId = "dummy_user_id",
 						title = "Test Document",
 						content = "This is a test document.",
-						lastModified = lastRemoteModified,
+						lastModified = lastLocalModified,
 						recreateIndex = false,
 					},
+					documentTree = dummy_remote_document_tree,
 				})
 			)
+			busted.assert.spy(http_spy_get).was_not_called()
 		end)
 
 		it("should update the local file if only remote document was modified", function()
@@ -117,14 +144,16 @@ describe("rocketnotes.sync", function()
 				{ doc1 = remoteModifiedDocument },
 				lastSyncedTable,
 				access_token,
-				api_url
+				api_url,
+				dummy_remote_document_tree
 			)
 
 			assert.are.equal(date1, lastRemoteModified)
 			assert.are.equal(date2, remoteModifiedDocument)
 			busted.assert.spy(utils_spy.create_file).was.called_with(path .. "/" .. file_name)
 			busted.assert.spy(utils_spy.write_file).was.called_with(path .. "/" .. file_name, documentContent)
-			busted.assert.spy(http_spy).was_not_called()
+			busted.assert.spy(http_spy_post).was_not_called()
+			busted.assert.spy(http_spy_get).was_called(1)
 		end)
 
 		it(
@@ -140,14 +169,16 @@ describe("rocketnotes.sync", function()
 					{ doc1 = remoteModifiedDocument },
 					lastSyncedTable,
 					access_token,
-					api_url
+					api_url,
+					dummy_remote_document_tree
 				)
 
 				assert.are.equal(date1, lastRemoteModified)
 				assert.are.equal(date2, lastLocalModified)
 				busted.assert.spy(utils_spy.create_file).was.called_with(path .. "/" .. documentTitle .. "_remote.md")
 				busted.assert.spy(utils_spy.write_file).was.called_with(path .. "/" .. file_name, documentContent)
-				busted.assert.spy(http_spy).was_not_called()
+				busted.assert.spy(http_spy_post).was_not_called()
+				busted.assert.spy(http_spy_get).was_called(1)
 			end
 		)
 
@@ -155,14 +186,22 @@ describe("rocketnotes.sync", function()
 			utils_mock.file_exists.returns(true)
 			utils_mock.get_last_modified_date_of_file.returns(lastSynced)
 
-			local date1, date2 =
-				sync.save_document(document, path, lastRemoteModifiedTable, lastSyncedTable, access_token, api_url)
+			local date1, date2 = sync.save_document(
+				document,
+				path,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				access_token,
+				api_url,
+				dummy_remote_document_tree
+			)
 
 			assert.are.equal(date1, lastRemoteModified)
 			assert.are.equal(date2, lastSynced)
 			busted.assert.spy(utils_spy.create_file).was.not_called()
 			busted.assert.spy(utils_spy.write_file).was.not_called()
-			busted.assert.spy(http_spy).was_not_called()
+			busted.assert.spy(http_spy_post).was_not_called()
+			busted.assert.spy(http_spy_get).was_not_called()
 		end)
 	end)
 
@@ -248,26 +287,42 @@ describe("rocketnotes.sync", function()
 		it("should sync documents correctly", function()
 			sync.sync()
 			busted.assert.spy(process_document_spy).was_called(2)
-			busted.assert.spy(process_document_spy).was_called_with({
-				id = "doc1",
-				name = "doc1",
-				children = {
-					{
-						id = "doc2",
-						name = "doc2",
+			busted.assert.spy(process_document_spy).was_called_with(
+				{
+					id = "doc1",
+					name = "doc1",
+					children = {
+						{
+							id = "doc2",
+							name = "doc2",
+						},
 					},
 				},
-			}, nil, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
-			busted.assert.spy(process_document_spy).was_called_with({
-				id = "doc3",
-				name = "doc3",
-				children = {
-					{
-						id = "doc4",
-						name = "doc4",
+				nil,
+				access_token,
+				api_url,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				vim.fn.json_decode(remote_document_tree)
+			)
+			busted.assert.spy(process_document_spy).was_called_with(
+				{
+					id = "doc3",
+					name = "doc3",
+					children = {
+						{
+							id = "doc4",
+							name = "doc4",
+						},
 					},
 				},
-			}, nil, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
+				nil,
+				access_token,
+				api_url,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				vim.fn.json_decode(remote_document_tree)
+			)
 			busted.assert.spy(utils_spy.save_file).was_called_with("/path/to/cache/file", remote_document_tree)
 			busted.assert.spy(utils_spy.save_remote_last_modified_table).was_called_with(lastRemoteModifiedTable)
 			busted.assert.spy(utils_spy.save_last_synced_table).was_called_with(lastSyncedTable)
@@ -335,29 +390,55 @@ describe("rocketnotes.sync", function()
 			sync.sync()
 
 			busted.assert.spy(process_document_spy).was_called(2)
-			busted.assert.spy(process_document_spy).was_called_with({
-				id = "doc1",
-				name = "doc1",
-				children = {
-					{
-						id = "doc2",
-						name = "doc2",
+			busted.assert.spy(process_document_spy).was_called_with(
+				{
+					id = "doc1",
+					name = "doc1",
+					children = {
+						{
+							id = "doc2",
+							name = "doc2",
+						},
 					},
 				},
-			}, nil, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
+				nil,
+				access_token,
+				api_url,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				vim.fn.json_decode(remote_document_tree)
+			)
+			busted.assert.spy(process_document_spy).was_called_with(
+				{
+					id = "doc3",
+					name = "doc3",
+					children = {
+						{
+							id = "doc4",
+							name = "doc4",
+						},
+					},
+				},
+				nil,
+				access_token,
+				api_url,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				vim.fn.json_decode(remote_document_tree)
+			)
 		end)
 	end)
 
 	describe("create_document_space", function()
-		local documentId = "doc1"
 		local documentPath = "path/to/doc1"
 		local access_token = "dummy_access_token"
 		local apiUrl = "https://api.example.com"
 		local lastRemoteModifiedTable = {}
 		local lastSyncedTable = {}
-		local documentContent =
+		local document =
 			'{"id": "doc1", "title": "Test Document", "content": "This is a test document.", "lastModified": "2023-10-01T12:00:00Z"}'
 		local workspace_path = "/workspace"
+		local dummy_document_tree = {}
 
 		local utils_mock
 		local http_mock
@@ -389,20 +470,26 @@ describe("rocketnotes.sync", function()
 
 		it("should create document space and save document", function()
 			sync.create_document_space(
-				documentId,
+				document,
 				documentPath,
 				access_token,
 				apiUrl,
 				lastRemoteModifiedTable,
-				lastSyncedTable
+				lastSyncedTable,
+				dummy_document_tree
 			)
 
 			local expected_path = workspace_path .. "/" .. documentPath
 			busted.assert.spy(utils_spy.create_directory_if_not_exists).was_called_with(expected_path)
-			busted.assert.spy(http_spy.get_document).was_called_with(access_token, documentId, apiUrl)
-			busted.assert
-				.spy(save_document_spy)
-				.was_called_with(documentContent, expected_path, lastRemoteModifiedTable, lastSyncedTable, access_token, apiUrl)
+			busted.assert.spy(save_document_spy).was_called_with(
+				document,
+				expected_path,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				access_token,
+				apiUrl,
+				dummy_document_tree
+			)
 		end)
 	end)
 
@@ -426,6 +513,7 @@ describe("rocketnotes.sync", function()
 		local api_url = "https://api.example.com"
 		local lastRemoteModifiedTable = {}
 		local lastSyncedTable = {}
+		local dummy_document_tree = {}
 
 		local original_create_document_space
 		local process_document_spy
@@ -451,41 +539,62 @@ describe("rocketnotes.sync", function()
 				access_token,
 				api_url,
 				lastRemoteModifiedTable,
-				lastSyncedTable
+				lastSyncedTable,
+				dummy_document_tree
 			)
 
 			busted.assert.spy(create_document_space_spy).was_called(3)
 			busted.assert.spy(process_document_spy).was_called(3)
 
-			busted.assert
-				.spy(create_document_space_spy)
-				.was_called_with(document.id, document.name, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
+			busted.assert.spy(create_document_space_spy).was_called_with(
+				document,
+				document.name,
+				access_token,
+				api_url,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				dummy_document_tree
+			)
 
 			busted.assert.spy(create_document_space_spy).was_called_with(
-				document.children[1].id,
+				document.children[1],
 				document.name .. "/" .. document.children[1].name,
 				access_token,
 				api_url,
 				lastRemoteModifiedTable,
-				lastSyncedTable
+				lastSyncedTable,
+				dummy_document_tree
 			)
 
 			busted.assert.spy(create_document_space_spy).was_called_with(
-				document.children[2].id,
+				document.children[2],
 				document.name .. "/" .. document.children[2].name,
 				access_token,
 				api_url,
 				lastRemoteModifiedTable,
-				lastSyncedTable
+				lastSyncedTable,
+				dummy_document_tree
 			)
 
-			busted.assert
-				.spy(process_document_spy)
-				.was_called_with(document.children[1], document.name, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
+			busted.assert.spy(process_document_spy).was_called_with(
+				document.children[1],
+				document.name,
+				access_token,
+				api_url,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				dummy_document_tree
+			)
 
-			busted.assert
-				.spy(process_document_spy)
-				.was_called_with(document.children[2], document.name, access_token, api_url, lastRemoteModifiedTable, lastSyncedTable)
+			busted.assert.spy(process_document_spy).was_called_with(
+				document.children[2],
+				document.name,
+				access_token,
+				api_url,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				dummy_document_tree
+			)
 		end)
 
 		it("should process a document without children", function()
@@ -500,21 +609,21 @@ describe("rocketnotes.sync", function()
 				access_token,
 				api_url,
 				lastRemoteModifiedTable,
-				lastSyncedTable
+				lastSyncedTable,
+				dummy_document_tree
 			)
 
 			busted.assert.spy(create_document_space_spy).was_called(1)
 			busted.assert.spy(process_document_spy).was_called(1)
-			busted.assert
-				.spy(create_document_space_spy)
-				.was_called_with(
-					single_document.id,
-					single_document.name,
-					access_token,
-					api_url,
-					lastRemoteModifiedTable,
-					lastSyncedTable
-				)
+			busted.assert.spy(create_document_space_spy).was_called_with(
+				single_document,
+				single_document.name,
+				access_token,
+				api_url,
+				lastRemoteModifiedTable,
+				lastSyncedTable,
+				dummy_document_tree
+			)
 		end)
 	end)
 end)
