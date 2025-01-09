@@ -13,7 +13,7 @@
 
 ```lua
 {
-  "fynnfluegge/rocketnores.nvim",
+  "fynnfluegge/rocketnotes.nvim",
   dependencies = {
     "MeanderingProgrammer/render-markdown.nvim",
     "OXY2DEV/markview.nvim",
