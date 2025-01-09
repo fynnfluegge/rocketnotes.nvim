@@ -14,66 +14,6 @@ M.save_document = function(
 	api_url,
 	remote_document_tree_table
 )
-	-- local filePath = document_path .. "/" .. document.name .. ".md"
-	-- local localFileExists = utils.file_exists(filePath)
-	--
-	-- if not localFileExists then
-	-- 	local document_file = utils.create_file(filePath)
-	-- 	local remote_document = http.get_document(access_token, document.id, api_url)
-	-- 	remote_document = vim.fn.json_decode(remote_document)
-	-- 	utils.write_file(document_file, remote_document.content)
-	-- 	return document.lastModified, utils.get_last_modified_date_of_file(document_file:gsub(" ", "\\ "))
-	-- else
-	-- 	local localFileLastModifiedDate = utils.get_last_modified_date_of_file(filePath:gsub(" ", "\\ "))
-	-- 	local localModified = true
-	-- 	local remoteModified = true
-	-- 	if localFileLastModifiedDate == last_synced_table[document.id] then
-	-- 		localModified = false
-	-- 	end
-	-- 	if document.lastModified == last_remote_modified_table[document.id] then
-	-- 		remoteModified = false
-	-- 	end
-	-- 	-- check if local file was modified and remote file was modified. If yes, save a second copy of the file
-	-- 	if localModified and remoteModified then
-	-- 		local document_file_remote = utils.create_file(document_path .. "/" .. document.name .. "_remote.md")
-	-- 		local remote_document = http.get_document(access_token, document.id, api_url)
-	-- 		remote_document = vim.fn.json_decode(remote_document)
-	-- 		utils.write_file(document_file_remote, remote_document.content)
-	-- 		return document.lastModified, localFileLastModifiedDate
-	-- 	-- If only remote file was modified, update the local file
-	-- 	elseif remoteModified then
-	-- 		local document_file = utils.create_file(document_path .. "/" .. document.name .. ".md")
-	-- 		local remote_document = http.get_document(access_token, document.id, api_url)
-	-- 		remote_document = vim.fn.json_decode(remote_document)
-	-- 		utils.write_file(document_file, remote_document.content)
-	-- 		local lastModified = utils.get_last_modified_date_of_file(document_file:gsub(" ", "\\ "))
-	-- 		return document.lastModified, lastModified
-	-- 	-- If only local file was modified, do save document post request
-	-- 	elseif localModified then
-	-- 		document.lastModified = utils.get_last_modified_date_of_file(filePath:gsub(" ", "\\ "))
-	-- 		local new_document = {}
-	-- 		local decoded_token = utils.decode_token(access_token)
-	-- 		local user_id = decoded_token.username
-	-- 		new_document.id = document.id
-	-- 		new_document.userId = user_id
-	-- 		new_document.name = document.name
-	-- 		new_document.content = utils.read_file(filePath)
-	-- 		new_document.lastModified = document.lastModified
-	-- 		-- TODO set isPublic and recreateIndex. Deleted is always false
-	-- 		-- new_document.recreateIndex = true
-	-- 		-- new_document.isPublic = document.isPublic
-	-- 		-- new_document.deleted = false
-	-- 		local body = {}
-	-- 		body.document = new_document
-	-- 		body.documentTree = remote_document_tree_table
-	-- 		http.post_document(access_token, api_url, body)
-	-- 		utils.save_file(utils.get_tree_cache_file(), vim.fn.json_encode(remote_document_tree_table))
-	-- 		return document.lastModified, localFileLastModifiedDate
-	-- 	else
-	-- 		return document.lastModified, localFileLastModifiedDate
-	-- 	end
-	-- end
-	-- document = vim.fn.json_decode(document)
 	local filePath = document_path .. "/" .. document.name .. ".md"
 	local localFileExists = utils.file_exists(filePath)
 
@@ -227,29 +167,17 @@ M.sync = function()
 	print("RocketNotes synced successfully")
 
 	---------------------------------------------
-	-- TODO upload newly local created documents and update remote document tree
+	-- TODO upload newly local created documents and update remote document tree.
+	-- For this use deopth first search and traverse the local document tree.
+	-- If a document is not present in the lastRemoteModifiedTable, it was created locally
+	--   because it was not synced yet. In this case, upload the document and update the local tree
+	--   by attaching the document to the parent in the remote document tree.
 	if local_document_tree then
+		local local_document_tree_table = vim.fn.json_decode(local_document_tree)
 		local remote_documents =
 			utils.create_node_map(utils.flatten_document_tree(remote_document_tree_table.documents))
+		local local_documents = utils.create_node_map(utils.flatten_document_tree(local_document_tree_table.documents))
 		local local_document_paths = utils.get_all_files(utils.get_workspace_path())
-		-- This is needed to keep track of newly created documents in local workspace that have been uploaded already
-		-- during iteration of local documents. Once a newly created document with a parent is found, the whole subtree is synced
-		local created_documents = {}
-		for _, document_path in ipairs(local_document_paths) do
-			local parent_folder, file_name = utils.get_file_name_and_parent_dir(document_path)
-			if
-				not remote_documents[file_name]
-				and (remote_documents[parent_folder] or parent_folder == "root")
-				and not created_documents[file_name]
-			then
-				-- print("create document " .. file_name)
-				utils.traverse_directory(document_path, function(file)
-					-- TODO update local tree and upload document
-					-- print("TODO update local tree and upload document " .. file)
-				end)
-				created_documents[file_name] = true
-			end
-		end
 	end
 	---------------------------------------------
 	utils.save_remote_last_modified_table(lastRemoteModifiedTable)
