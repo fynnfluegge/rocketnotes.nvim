@@ -8,9 +8,7 @@ M.login = function()
 	local id_token, access_token, refresh_token, clientId, api_url, domain, region, username, password =
 		tokens.get_tokens()
 
-	local inputToken = vim.fn.input(
-		domain and region and api_url and clientId and "Enter config token (%s, %s, %s, %s): " or "Enter config token: "
-	)
+	local inputToken = vim.fn.input("Enter config token: ")
 
 	if inputToken ~= "" then
 		local decoded_token = vim.fn.json_decode(utils.decode_base64(inputToken))
