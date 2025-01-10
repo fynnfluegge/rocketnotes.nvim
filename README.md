@@ -7,7 +7,7 @@
 
 </div>
 
-#### Neovim plugin for [rocketnotes](https://www.takeniftynotes.net/). Sync all documents locally inside Neovim with ease.
+#### Neovim plugin for [rocketnotes](https://www.takeniftynotes.net/). Synchronize all documents locally inside Neovim with ease.
 
 ## 📦 Installation
 
