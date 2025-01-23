@@ -32,7 +32,7 @@
   - Stores authentication data under `~/Library/Application Support/rocketnotes/tokens.json`
 - `:RockentNotesSync`
 
-  - Synchronizes all documents to `~/.rocketnotes`
+  - Synchronizes all documents to `~/rocketnotes`
   - Stores cache files for all subsequent synchronizations under `~/Library/Application Support/rocketnotes`
 
 ## Limitations

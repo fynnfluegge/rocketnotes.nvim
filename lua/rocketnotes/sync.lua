@@ -173,10 +173,9 @@ M.sync = function()
 	--   because it was not synced yet. In this case, upload the document and update the local tree
 	--   by attaching the document to the parent in the remote document tree.
 	if local_document_tree then
-		local local_document_tree_table = vim.fn.json_decode(local_document_tree)
 		local remote_documents =
 			utils.create_node_map(utils.flatten_document_tree(remote_document_tree_table.documents))
-		local local_documents = utils.create_node_map(utils.flatten_document_tree(local_document_tree_table.documents))
+		local local_documents = utils.create_node_map(utils.flatten_document_tree(local_document_tree.documents))
 		local local_document_paths = utils.get_all_files(utils.get_workspace_path())
 	end
 	---------------------------------------------

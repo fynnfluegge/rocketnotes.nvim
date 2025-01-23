@@ -78,10 +78,10 @@ M.get_workspace_path = function()
 
 	if package.config:sub(1, 1) == "\\" then
 		-- Windows
-		return M.create_directory_if_not_exists(home .. "\\.rocketnotes")
+		return M.create_directory_if_not_exists(home .. "\\rocketnotes")
 	else
 		-- macOS and Linux
-		return M.create_directory_if_not_exists(home .. "/.rocketnotes")
+		return M.create_directory_if_not_exists(home .. "/rocketnotes")
 	end
 end
 
