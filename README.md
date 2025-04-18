@@ -25,7 +25,7 @@
 
 - `:RockentNotesAuth`
   - Enter config token. Can be found in User info as `Vim Config Token`:  
-    <img width="383" alt="Screenshot 2025-01-10 at 18 48 41" src="https://github.com/user-attachments/assets/fe3ac1a1-8219-41d1-aa69-9d32f54df806" />
+    <img width="256" src="https://github.com/user-attachments/assets/9da5522f-1927-42cd-81fe-190104df83e5" />
   - Enter username
   - Enter password
   - Stores authentication data under `~/Library/Application Support/rocketnotes/tokens.json`
